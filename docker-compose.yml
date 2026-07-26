@@ -1,0 +1,112 @@
+version: "3.8"
+
+x-app-build: &app-build
+  build:
+    context: .
+    dockerfile: Dockerfile
+
+x-app-env: &app-env
+  KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+  DATA_ROOT: /app/data
+  TICKERS: "AAPL,NVDA,TSLA,MSFT"
+  FINBERT_MODEL_NAME: yiyanghkust/finbert-tone
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc -w 2 localhost 2181 | grep imok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-log:/var/lib/zookeeper/log
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    hostname: kafka
+    container_name: kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+
+  kafka-producer:
+    <<: *app-build
+    container_name: kafka-producer
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      <<: *app-env
+    command: ["python", "-m", "ingestion.kafka_producer", "--rate", "5"]
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+  ml-inference-spark:
+    <<: *app-build
+    container_name: ml-inference-spark
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      <<: *app-env
+    command: ["python", "-m", "data_pipeline.spark_streaming"]
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "test -d /app/data/checkpoints/raw_sentiment_stream || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    # FinBERT inference is CPU-heavy; give the container real headroom.
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 4g
+
+  telegram-bot:
+    <<: *app-build
+    container_name: telegram-bot
+    depends_on:
+      - ml-inference-spark
+    environment:
+      <<: *app-env
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?set TELEGRAM_BOT_TOKEN in .env, see .env.example}
+    command: ["python", "-m", "telegram_bot.bot"]
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+volumes:
+  zookeeper-data:
+  zookeeper-log:
+  kafka-data:

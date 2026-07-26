@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m py_compile config/settings.py ingestion/kafka_utils.py ingestion/kafka_producer.py ml_engine/finbert_model.py ml_engine/distributed_inference.py data_pipeline/delta_writer.py data_pipeline/spark_streaming.py data_pipeline/data_alignment.py quant_backtest/signal_generator.py quant_backtest/backtester.py dashboard/app.py)"
+    ]
+  }
+}
