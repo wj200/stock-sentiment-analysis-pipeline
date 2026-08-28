@@ -123,6 +123,64 @@ services:
       - ./data:/app/data
     restart: unless-stopped
 
+  # Feature 2: extended-hours price-move monitor -> stock-price-alerts
+  price-monitor:
+    <<: *app-build
+    container_name: price-monitor
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      <<: *app-env
+    command: ["python", "-m", "ingestion.price_monitor", "--poll", "60"]
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+  # Feature 3: US macro release monitor -> macro-events (needs FRED_API_KEY)
+  macro-monitor:
+    <<: *app-build
+    container_name: macro-monitor
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      <<: *app-env
+    command: ["python", "-m", "ingestion.macro_monitor"]
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+  # Features 2 & 3: consume alert topics, explain, fan out to subscribers
+  alert-dispatcher:
+    <<: *app-build
+    container_name: alert-dispatcher
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      <<: *app-env
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?set TELEGRAM_BOT_TOKEN in .env, see .env.example}
+    command: ["python", "-m", "telegram_bot.dispatcher"]
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+  # Builder-facing dashboard (optional)
+  dashboard:
+    <<: *app-build
+    container_name: dashboard
+    depends_on:
+      - ml-inference-spark
+    environment:
+      <<: *app-env
+    command: ["streamlit", "run", "dashboard/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
 volumes:
   zookeeper-data:
   zookeeper-log:

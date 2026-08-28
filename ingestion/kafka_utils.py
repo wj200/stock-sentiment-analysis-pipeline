@@ -33,6 +33,8 @@ def ensure_topics(
         for name in (
             settings.KAFKA_TOPIC_RAW_SENTIMENT,
             settings.KAFKA_TOPIC_SCORED_SENTIMENT,
+            settings.KAFKA_TOPIC_PRICE_ALERTS,
+            settings.KAFKA_TOPIC_MACRO_EVENTS,
         )
         if name not in existing
     ]

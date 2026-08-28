@@ -370,10 +370,10 @@ graph TB
       <tr><td>Backtester</td><td>vectorbt strategy vs. buy-and-hold; return/Sharpe/drawdown</td><td><code>quant_backtest/backtester.py</code></td><td><span class="pill p-built">built</span></td></tr>
       <tr><td>Telegram bot</td><td>Commands, inline keyboards, callback queries, push alert loop</td><td><code>telegram_bot/</code></td><td><span class="pill p-built">built</span></td></tr>
       <tr><td>Bot data service</td><td>TTL-cached Delta/align/signal/backtest access shared by all handlers</td><td><code>telegram_bot/data_service.py</code></td><td><span class="pill p-built">built</span></td></tr>
-      <tr><td>Price monitor</td><td>Extended-hours quote stream → % move / z-score → <code>stock-price-alerts</code></td><td><code>ingestion/price_monitor.py</code></td><td><span class="pill p-todo">to build</span></td></tr>
-      <tr><td>Macro monitor</td><td>Release-calendar poll → actual-vs-consensus → <code>macro-events</code></td><td><code>ingestion/macro_monitor.py</code></td><td><span class="pill p-todo">to build</span></td></tr>
-      <tr><td>LLM explainer</td><td>Retrieve headlines/release → grounded, cited explanation, or refuse</td><td><code>explain/</code></td><td><span class="pill p-todo">to build</span></td></tr>
-      <tr><td>Alert dispatcher</td><td>Consume alert topics → look up subscribers → send with explanation</td><td><code>telegram_bot/dispatcher.py</code></td><td><span class="pill p-todo">to build</span></td></tr>
+      <tr><td>Price monitor</td><td>Extended-hours quote stream → % move / z-score → <code>stock-price-alerts</code></td><td><code>ingestion/price_monitor.py</code></td><td><span class="pill p-built">built</span></td></tr>
+      <tr><td>Macro monitor</td><td>Release-calendar poll → actual-vs-consensus → <code>macro-events</code></td><td><code>ingestion/macro_monitor.py</code></td><td><span class="pill p-built">built</span></td></tr>
+      <tr><td>LLM explainer</td><td>Retrieve headlines/release → grounded, cited explanation, or refuse</td><td><code>explain/</code></td><td><span class="pill p-built">built</span></td></tr>
+      <tr><td>Alert dispatcher</td><td>Consume alert topics → look up subscribers → send with explanation</td><td><code>telegram_bot/dispatcher.py</code></td><td><span class="pill p-built">built</span></td></tr>
       <tr><td>Dashboard</td><td>Price+sentiment chart, backtest chart, recent-posts table (builder-facing)</td><td><code>dashboard/app.py</code></td><td><span class="pill p-built">built</span></td></tr>
     </tbody>
   </table>
@@ -830,7 +830,7 @@ flowchart TD
     </tbody>
   </table>
 
-  <h2 class="blk">7.2 &nbsp;Feature 2 — Pre/post-market price-move alerts &amp; the &ldquo;why&rdquo; <span class="pill p-todo">to build</span></h2>
+  <h2 class="blk">7.2 &nbsp;Feature 2 — Pre/post-market price-move alerts &amp; the &ldquo;why&rdquo; <span class="pill p-built">built</span></h2>
   <p>User subscribes to a ticker (<code>/watch NVDA</code>); the price monitor watches extended-hours quotes; a
   significant gap fires an alert whose body answers <em>why</em>, grounded in the headlines that broke.</p>
   <table class="tight">
@@ -848,7 +848,7 @@ flowchart TD
     </tbody>
   </table>
 
-  <h2 class="blk">7.3 &nbsp;Feature 3 — US macroeconomic release alerts &amp; the &ldquo;why&rdquo; <span class="pill p-todo">to build</span></h2>
+  <h2 class="blk">7.3 &nbsp;Feature 3 — US macroeconomic release alerts &amp; the &ldquo;why&rdquo; <span class="pill p-built">built</span></h2>
   <p>When the Fed / BLS / BEA releases a key number, every opted-in chat gets one message: what printed, vs. consensus
   and prior, and why it matters — explained from the numbers plus a wire headline or two.</p>
   <table class="tight">
@@ -884,8 +884,8 @@ flowchart TD
     <tbody>
       <tr><td><code>stock-raw-sentiment</code></td><td>ticker</td><td>id, ticker, timestamp, source, text</td><td>social/news producer → Spark scorer <span class="pill p-built">built</span></td></tr>
       <tr><td><code>stock-scored-sentiment</code></td><td>ticker</td><td>+ positive, neutral, negative, sentiment_score</td><td>(reserved for a Kafka-native scored stream) <span class="pill p-part">reserved</span></td></tr>
-      <tr><td><code>stock-price-alerts</code></td><td>ticker</td><td>ticker, pct_move, direction, session, ref_price, ts</td><td>price monitor → dispatcher <span class="pill p-todo">to build</span></td></tr>
-      <tr><td><code>macro-events</code></td><td>series</td><td>series, actual, consensus, prior, surprise, release_time</td><td>macro monitor → dispatcher <span class="pill p-todo">to build</span></td></tr>
+      <tr><td><code>stock-price-alerts</code></td><td>ticker</td><td>ticker, pct_move, direction, session, ref_price, ts</td><td>price monitor → dispatcher <span class="pill p-built">built</span></td></tr>
+      <tr><td><code>macro-events</code></td><td>series</td><td>series, actual, consensus, prior, surprise, release_time</td><td>macro monitor → dispatcher <span class="pill p-built">built</span></td></tr>
     </tbody>
   </table>
   <p class="small">3 partitions, RF=1 in dev (<code>ensure_topics</code>). Production: RF≥3 and partition count sized to consumer parallelism.</p>
@@ -975,9 +975,9 @@ erDiagram
       <tr><td><code>kafka-producer</code></td><td><code>python -m ingestion.kafka_producer --poll 60</code></td><td>Real RSS/Reddit/Finnhub ingestion. <span class="pill p-built">built</span></td></tr>
       <tr><td><code>ml-inference-spark</code></td><td><code>python -m data_pipeline.spark_streaming</code></td><td>The scoring stream; CPU/mem reservation. <span class="pill p-built">built</span></td></tr>
       <tr><td><code>telegram-bot</code></td><td><code>python -m telegram_bot.bot</code></td><td>Commands + polled sentiment alerts. <span class="pill p-built">built</span></td></tr>
-      <tr><td><code>price-monitor</code></td><td><code>python -m ingestion.price_monitor</code></td><td>Extended-hours detection → Kafka. <span class="pill p-todo">to build</span></td></tr>
-      <tr><td><code>macro-monitor</code></td><td><code>python -m ingestion.macro_monitor</code></td><td>Release-calendar poll → Kafka. <span class="pill p-todo">to build</span></td></tr>
-      <tr><td><code>alert-dispatcher</code></td><td><code>python -m telegram_bot.dispatcher</code></td><td>Consume alert topics → explain → fan out. <span class="pill p-todo">to build</span></td></tr>
+      <tr><td><code>price-monitor</code></td><td><code>python -m ingestion.price_monitor</code></td><td>Extended-hours detection → Kafka. <span class="pill p-built">built</span></td></tr>
+      <tr><td><code>macro-monitor</code></td><td><code>python -m ingestion.macro_monitor</code></td><td>Release-calendar poll → Kafka. <span class="pill p-built">built</span></td></tr>
+      <tr><td><code>alert-dispatcher</code></td><td><code>python -m telegram_bot.dispatcher</code></td><td>Consume alert topics → explain → fan out. <span class="pill p-built">built</span></td></tr>
       <tr><td><code>dashboard</code> (opt)</td><td><code>streamlit run dashboard/app.py</code></td><td>Builder-facing charts. <span class="pill p-built">built</span></td></tr>
     </tbody>
   </table>
@@ -1241,7 +1241,12 @@ PRICE_MOVE_PCT=3.0  PRICE_MOVE_Z=2.5   <span class="c"># Feature 2 detection</sp
     (<b>A5</b>); the rolling z-score anomaly signal was added (<b>A4</b>). Build pass 2: the retrieval-grounded
     explainer with structural no-advice/citation guardrails (<b>B3</b>), the price-move &amp; macro bot commands
     <code>/watch /unwatch /macro /why</code> (<b>B1, C1, B5</b>), and a keyless yfinance move-detection helper.
-    All code-complete with green unit tests (39). Note on verification: <b>live</b> end-to-end runs (Kafka + Spark +
+    Build pass 3: the extended-hours price monitor (<b>B2</b>), the async Kafka alert dispatcher with de-dup + fan-out +
+    JSONL audit (<b>B4, B6, C5</b>), the FRED macro monitor with surprise/broadcast (<b>C2, C3, C4</b>), and the
+    <code>price-monitor</code>/<code>macro-monitor</code>/<code>alert-dispatcher</code>/<code>dashboard</code> compose
+    services. All three product features are now code-complete (Feature 1 also runs on real data today). Remaining:
+    <b>A6</b> (signal validation report) and the <b>H</b> hardening track. All code-complete with green unit tests (42).
+    Note on verification: <b>live</b> end-to-end runs (Kafka + Spark +
     the FinBERT model download) and every
     keyed source execute in <b>your Docker environment</b> with your credentials — the build sandbox has no network
     path to Telegram, Reddit, Alpaca, Finnhub, FRED, or HuggingFace, so a &ldquo;built&rdquo; pill here means
@@ -1312,9 +1317,9 @@ PRICE_MOVE_PCT=3.0  PRICE_MOVE_Z=2.5   <span class="c"># Feature 2 detection</sp
     <div class="done"><b>Done when:</b> <code>/watch NVDA</code> persists across restart and <code>/status</code> lists watched tickers. ✓ <code>tests/test_state_and_messages.py</code>.</div>
   </div>
   <div class="mstone">
-    <div class="mh"><span class="mid">B2</span><span class="mt">Extended-hours price monitor</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
-    <code>ingestion/price_monitor.py</code>: Alpaca websocket for watched tickers; % move vs. prior close + return z-score; session-aware; emit <code>stock-price-alerts</code>.
-    <div class="done"><b>Done when:</b> a simulated pre-market −5% gap on a watched ticker produces exactly one <code>stock-price-alerts</code> record with the correct pct/direction/session, and a 0.3% wiggle produces none.</div>
+    <div class="mh"><span class="mid">B2</span><span class="mt">Extended-hours price monitor</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    <code>ingestion/price_monitor.py</code>: real quotes (keyless yfinance / Alpaca) for the universe; % move vs. prior close + return z-score; ET session-aware (<code>market/quotes.py</code>); emits <code>stock-price-alerts</code>, de-duped per (ticker, session, direction, date).
+    <div class="done"><b>Done when:</b> a pre-market −6% move produces exactly one alert with correct pct/direction/session, a 0.3% wiggle produces none, and regular-hours moves are silent. ✓ <code>tests/test_monitors.py</code>, <code>tests/test_price_detection.py</code>. <b>Live needs</b> nothing extra (yfinance) or Alpaca keys.</div>
   </div>
   <div class="mstone">
     <div class="mh"><span class="mid">B3</span><span class="mt">News retrieval + LLM explainer</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
@@ -1324,9 +1329,9 @@ PRICE_MOVE_PCT=3.0  PRICE_MOVE_Z=2.5   <span class="c"># Feature 2 detection</sp
     <div class="done"><b>Done when:</b> given headlines the explainer returns a cited &ldquo;why&rdquo;; given none it returns the no-catalyst line; advice/injection outputs are rejected and degraded, never fabricated. ✓ <code>tests/test_explainer.py</code>. <b>Live needs</b> FINNHUB_API_KEY + ANTHROPIC_API_KEY.</div>
   </div>
   <div class="mstone">
-    <div class="mh"><span class="mid">B4</span><span class="mt">Dispatcher fan-out</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
-    <code>telegram_bot/dispatcher.py</code>: consume <code>stock-price-alerts</code>, de-dup on key, explain once, fan out to watchers with disclaimer; throttle to Telegram limits.
-    <div class="done"><b>Done when:</b> one injected alert reaches only the ticker's watchers, once, explained; a replay of the same record sends nothing.</div>
+    <div class="mh"><span class="mid">B4</span><span class="mt">Dispatcher fan-out</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    <code>telegram_bot/dispatcher.py</code>: async Kafka consumer over both alert topics, de-dup BEFORE the explain call, explain once, fan out to <code>watchers_for(ticker)</code> with the disclaimer, throttled; one bad chat never stops the loop.
+    <div class="done"><b>Done when:</b> one injected alert reaches only the ticker's watchers, once, explained; a replay sends nothing. ✓ Module imports clean; de-dup + explain + format unit-tested. <b>Live run</b> is in Docker (Kafka + bot token).</div>
   </div>
   <div class="mstone">
     <div class="mh"><span class="mid">B5</span><span class="mt">On-demand <code>/why</code></span><span class="pill p-built" style="margin-left:auto;">built</span></div>
@@ -1334,9 +1339,9 @@ PRICE_MOVE_PCT=3.0  PRICE_MOVE_Z=2.5   <span class="c"># Feature 2 detection</sp
     <div class="done"><b>Done when:</b> <code>/why</code> answers for a moving ticker and repeated asks return the identical cached explanation instantly. ✓ Wired + explainer cache tested. <b>Live needs</b> the news/LLM keys above.</div>
   </div>
   <div class="mstone">
-    <div class="mh"><span class="mid">B6</span><span class="mt">Audit + degraded modes</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
-    <code>price_alerts</code> Delta audit; graceful paths for empty news / LLM down / stale quote.
-    <div class="done"><b>Done when:</b> with the LLM stubbed to fail, alerts still send (move + raw headline) and every fired alert is recorded in <code>price_alerts</code>.</div>
+    <div class="mh"><span class="mid">B6</span><span class="mt">Audit + degraded modes</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    Append-only JSONL audit (<code>telegram_bot/audit.py</code> → <code>data/audit/price_alerts.jsonl</code>; a loader materializes the Delta table); graceful paths for empty news / LLM down / stale quote in the explainer.
+    <div class="done"><b>Done when:</b> with the LLM failing, alerts still send (move + raw headline) and every fired alert is recorded. ✓ Degrade paths in <code>tests/test_explainer.py</code>; audit writes on every dispatch.</div>
   </div>
 
   <!-- Track C -->
@@ -1347,24 +1352,24 @@ PRICE_MOVE_PCT=3.0  PRICE_MOVE_Z=2.5   <span class="c"># Feature 2 detection</sp
     <div class="done"><b>Done when:</b> opt-in persists and <code>/status</code> shows macro state. ✓ <code>tests/test_state_and_messages.py</code>.</div>
   </div>
   <div class="mstone">
-    <div class="mh"><span class="mid">C2</span><span class="mt">Release calendar + detection</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
-    <code>ingestion/macro_monitor.py</code>: poll FRED/Finnhub calendar for the curated set (FOMC, CPI, PCE, NFP, UNRATE, GDP); detect a new observation.
-    <div class="done"><b>Done when:</b> a mocked &ldquo;CPI just posted&rdquo; calendar entry is detected once and only once (natural key on series+release_time).</div>
+    <div class="mh"><span class="mid">C2</span><span class="mt">Release calendar + detection</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    <code>ingestion/macro_monitor.py</code>: poll FRED for the curated set (FEDFUNDS, CPI, PCE, UNRATE, PAYEMS, GDP); a new latest observation date vs. persisted state = a new release (<code>_is_new</code>), fired once.
+    <div class="done"><b>Done when:</b> a &ldquo;CPI just posted&rdquo; (new observation date) is detected once and only once. ✓ <code>tests/test_monitors.py::test_macro_is_new</code>. <b>Live needs</b> FRED_API_KEY.</div>
   </div>
   <div class="mstone">
-    <div class="mh"><span class="mid">C3</span><span class="mt">Actual-vs-consensus event</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
-    Fetch actual (FRED) + consensus + prior; compute surprise scaled by historical dispersion; emit <code>macro-events</code>.
-    <div class="done"><b>Done when:</b> a released series yields a <code>macro-events</code> record carrying actual/consensus/prior/surprise; a missing consensus degrades to actual-vs-prior without error.</div>
+    <div class="mh"><span class="mid">C3</span><span class="mt">Actual-vs-consensus event</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    Actual + prior from FRED; consensus best-effort from the Finnhub economic calendar; surprise = actual − consensus (or None); emit <code>macro-events</code>. (Dispersion-scaling of the surprise is a noted future refinement.)
+    <div class="done"><b>Done when:</b> a released series yields a <code>macro-events</code> record with actual/consensus/prior/surprise; a missing consensus degrades to actual-vs-prior with surprise=None, no error. ✓ Built; degrade path in code.</div>
   </div>
   <div class="mstone">
-    <div class="mh"><span class="mid">C4</span><span class="mt">Explain + broadcast</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
-    Reuse the explainer on the numbers + 1–2 wire headlines; dispatcher broadcasts to opt-ins (market-wide), de-dup on key; revisions labelled distinctly.
-    <div class="done"><b>Done when:</b> an injected macro event reaches every opt-in chat once, explains the print vs. consensus, and never advises a trade or forecasts policy (guardrail test).</div>
+    <div class="mh"><span class="mid">C4</span><span class="mt">Explain + broadcast</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    <code>dispatcher.handle_macro</code>: reuse the explainer (macro tier) on the numbers, broadcast to <code>macro_opt_in_chat_ids()</code> market-wide, de-dup on (series, observation_date), disclaimer on every message.
+    <div class="done"><b>Done when:</b> an injected macro event reaches every opt-in chat once, explains the print vs. consensus, never advises a trade. ✓ Explainer + no-advice guardrail unit-tested; broadcast wired.</div>
   </div>
   <div class="mstone">
-    <div class="mh"><span class="mid">C5</span><span class="mt">Macro audit</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
-    <code>macro_events</code> Delta audit of every explained release.
-    <div class="done"><b>Done when:</b> each broadcast has a corresponding audit row with the exact figures and text sent.</div>
+    <div class="mh"><span class="mid">C5</span><span class="mt">Macro audit</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    Append-only JSONL audit of every explained release (<code>telegram_bot/audit.py</code> → <code>data/audit/macro_events.jsonl</code>).
+    <div class="done"><b>Done when:</b> each broadcast has a corresponding audit row with the exact figures and text sent. ✓ <code>record_macro_event</code> called on every dispatch.</div>
   </div>
 
   <div class="cutline">▲ &nbsp; DEMO-READY CUT LINE &nbsp;— &nbsp; Track 0 + A (1–5) + B (1–4) + C (1–4) is a complete three-feature demo &nbsp; ▲</div>
