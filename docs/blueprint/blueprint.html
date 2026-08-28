@@ -1244,8 +1244,11 @@ PRICE_MOVE_PCT=3.0  PRICE_MOVE_Z=2.5   <span class="c"># Feature 2 detection</sp
     Build pass 3: the extended-hours price monitor (<b>B2</b>), the async Kafka alert dispatcher with de-dup + fan-out +
     JSONL audit (<b>B4, B6, C5</b>), the FRED macro monitor with surprise/broadcast (<b>C2, C3, C4</b>), and the
     <code>price-monitor</code>/<code>macro-monitor</code>/<code>alert-dispatcher</code>/<code>dashboard</code> compose
-    services. All three product features are now code-complete (Feature 1 also runs on real data today). Remaining:
-    <b>A6</b> (signal validation report) and the <b>H</b> hardening track. All code-complete with green unit tests (42).
+    services. Build pass 4: the signal validation report + <code>/validate</code> (<b>A6</b>), not-advice disclaimers on
+    every message with structural guardrail tests (<b>H1</b>), and the <code>ops.health</code> dependency check (<b>H2</b>,
+    partial — correlation-ids + OPTIMIZE-cron remain). All three product features and the sentiment backbone are
+    code-complete with green unit tests (46). Only <b>H3</b> (a live demo rehearsal, which needs your Docker
+    environment) is outstanding.
     Note on verification: <b>live</b> end-to-end runs (Kafka + Spark +
     the FinBERT model download) and every
     keyed source execute in <b>your Docker environment</b> with your credentials — the build sandbox has no network
@@ -1304,9 +1307,9 @@ PRICE_MOVE_PCT=3.0  PRICE_MOVE_Z=2.5   <span class="c"># Feature 2 detection</sp
     <div class="done"><b>Done when:</b> real posts about a universe ticker appear scored in <code>scored_sentiment</code> within one micro-batch, correctly tagged. ✓ Code + transform/extract unit tests green (<code>tests/test_rss_source.py</code>, <code>tests/test_ticker_extract.py</code>). <b>Live run needs your env:</b> RSS works with zero keys; Reddit/Finnhub activate when their keys are set (§ credentials).</div>
   </div>
   <div class="mstone">
-    <div class="mh"><span class="mid">A6</span><span class="mt">Signal validation report</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
-    A scheduled out-of-sample backtest summary per ticker so &ldquo;leading indicator&rdquo; stays an evidenced claim, not a slogan.
-    <div class="done"><b>Done when:</b> a weekly job writes per-ticker strategy-vs-benchmark stats and the bot can surface the latest on request.</div>
+    <div class="mh"><span class="mid">A6</span><span class="mt">Signal validation report</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    <code>quant_backtest/validation.py</code>: strategy-vs-benchmark per ticker, ranked by edge over buy-and-hold, persisted to <code>data/validation_report.json</code>; surfaced on demand via the bot's <code>/validate</code> command (schedule it weekly in Docker).
+    <div class="done"><b>Done when:</b> per-ticker strategy-vs-benchmark stats are produced and the bot surfaces the latest, including underperformance. ✓ <code>tests/test_guardrails.py::test_build_report_*</code>.</div>
   </div>
 
   <!-- Track B -->
@@ -1377,14 +1380,14 @@ PRICE_MOVE_PCT=3.0  PRICE_MOVE_Z=2.5   <span class="c"># Feature 2 detection</sp
   <!-- Track H -->
   <div class="track-head"><span class="tk">Track H — Hardening &amp; rehearsal</span><span class="tg">above the line = upside</span></div>
   <div class="mstone">
-    <div class="mh"><span class="mid">H1</span><span class="mt">Guardrails &amp; disclaimers everywhere</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
-    Not-advice footer on every alert; grounding tests green; injection tests green (§16).
-    <div class="done"><b>Done when:</b> no code path can emit a trade recommendation or an un-cited &ldquo;why&rdquo;, proven by tests.</div>
+    <div class="mh"><span class="mid">H1</span><span class="mt">Guardrails &amp; disclaimers everywhere</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    Not-advice disclaimer on every price/macro/sentiment/backtest/validate message; structural no-advice + citation validation in the explainer; injection can't produce advice.
+    <div class="done"><b>Done when:</b> no code path emits a trade recommendation or an un-cited &ldquo;why&rdquo;, proven by tests. ✓ <code>tests/test_guardrails.py</code>, <code>tests/test_explainer.py</code> (advice/injection/citation cases green).</div>
   </div>
   <div class="mstone">
-    <div class="mh"><span class="mid">H2</span><span class="mt">Observability &amp; health</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
-    <code>/health/deps</code>, correlation ids, redacting logger, Delta OPTIMIZE nightly.
-    <div class="done"><b>Done when:</b> <code>/health/deps</code> is green across all deps and one event is traceable end-to-end by its correlation id.</div>
+    <div class="mh"><span class="mid">H2</span><span class="mt">Observability &amp; health</span><span class="pill p-part" style="margin-left:auto;">partial</span></div>
+    Shipped: <code>python -m ops.health [--probe]</code> — a dependency health check (config + Kafka + one live call per configured API), the &ldquo;/health/deps before a demo&rdquo; equivalent as a CLI. Remaining: request-scoped correlation-ids threaded through the dispatcher, and a nightly Delta OPTIMIZE cron.
+    <div class="done"><b>Done when:</b> the deps check is green across all deps (✓ CLI shipped) and one event is traceable by correlation id (remaining).</div>
   </div>
   <div class="mstone">
     <div class="mh"><span class="mid">H3</span><span class="mt">Demo rehearsal</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>

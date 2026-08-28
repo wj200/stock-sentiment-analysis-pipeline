@@ -40,12 +40,13 @@ async def _check_chat(context: ContextTypes.DEFAULT_TYPE, chat_id: int, ticker: 
     if state.last_alert.get(ticker) == latest_ts:
         return  # already alerted on this bar
 
+    _NOTE = "\n<i>Not financial advice.</i>"
     if latest["entry_signal"]:
         await context.bot.send_message(
             chat_id=chat_id,
             text=(
-                f"🟢 <b>${ticker}</b> entry signal: rolling sentiment crossed above "
-                f"{settings.ENTRY_SENTIMENT_THRESHOLD:+.1f} as of {latest_ts}."
+                f"🟢 <b>${ticker}</b> bullish sentiment signal: rolling sentiment crossed above "
+                f"{settings.ENTRY_SENTIMENT_THRESHOLD:+.1f} as of {latest_ts}." + _NOTE
             ),
             parse_mode="HTML",
         )
@@ -54,8 +55,8 @@ async def _check_chat(context: ContextTypes.DEFAULT_TYPE, chat_id: int, ticker: 
         await context.bot.send_message(
             chat_id=chat_id,
             text=(
-                f"🔴 <b>${ticker}</b> exit signal: rolling sentiment dropped below "
-                f"{settings.EXIT_SENTIMENT_THRESHOLD:+.1f} as of {latest_ts}."
+                f"🔴 <b>${ticker}</b> bearish sentiment signal: rolling sentiment dropped below "
+                f"{settings.EXIT_SENTIMENT_THRESHOLD:+.1f} as of {latest_ts}." + _NOTE
             ),
             parse_mode="HTML",
         )

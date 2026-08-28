@@ -40,6 +40,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("unwatch", handlers.unwatch_command))
     application.add_handler(CommandHandler("macro", handlers.macro_command))
     application.add_handler(CommandHandler("why", handlers.why_command))
+    application.add_handler(CommandHandler("validate", handlers.validate_command))
     application.add_handler(CallbackQueryHandler(handlers.callback_query_handler))
 
     application.job_queue.run_repeating(

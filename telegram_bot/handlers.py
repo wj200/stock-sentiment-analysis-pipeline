@@ -34,6 +34,7 @@ _WELCOME = (
     "/window - pick a rolling sentiment window\n"
     "/price - price + sentiment chart\n"
     "/backtest - strategy vs. buy &amp; hold\n"
+    "/validate - strategy P&amp;L vs benchmark, all tickers\n"
     "/posts - recent scored posts\n"
     "/subscribe - alert on sentiment crossings\n"
     "/unsubscribe - stop sentiment alerts\n\n"
@@ -219,6 +220,38 @@ async def why_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await update.message.reply_html(msg)
 
 
+def _run_validation_current(window: str):
+    from quant_backtest.validation import run_validation
+
+    signal_df = data_service.load_signal_frame(window)
+    if signal_df.empty:
+        return None
+    return run_validation(signal_df, write=True)
+
+
+async def validate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """A6: strategy-vs-benchmark report per ticker, so the signal is shown honestly."""
+    state = store.get(update.effective_chat.id)
+    await update.effective_chat.send_action("typing")
+    try:
+        report = await asyncio.to_thread(_run_validation_current, state.window)
+    except Exception:  # noqa: BLE001
+        logger.exception("/validate failed")
+        await update.message.reply_text("Couldn't run the validation just now.")
+        return
+    if not report or not report["tickers"]:
+        await update.message.reply_text("Not enough aligned data yet to validate the signal.")
+        return
+    lines = [f"<b>Signal validation ({state.window} window)</b> — strategy vs. buy &amp; hold"]
+    for r in report["tickers"]:
+        lines.append(
+            f"${r['ticker']}: <b>{r['total_return_pct']}%</b> vs {r['benchmark_total_return_pct']}% "
+            f"(Δ {r['beat_benchmark_pp']:+}pp), Sharpe {r['sharpe_ratio']}"
+        )
+    lines.append("<i>Not financial advice. Past performance is not indicative of future results.</i>")
+    await update.message.reply_html("\n".join(lines))
+
+
 async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
@@ -269,6 +302,7 @@ async def _send_backtest_chart(update: Update, ticker: str, window_label: str) -
         f"Total return: <b>{result.total_return_pct:.2f}%</b> "
         f"(buy &amp; hold: {result.benchmark_total_return_pct:.2f}%)\n"
         f"Sharpe ratio: <b>{result.sharpe_ratio:.2f}</b>\n"
-        f"Max drawdown: <b>{result.max_drawdown_pct:.2f}%</b>"
+        f"Max drawdown: <b>{result.max_drawdown_pct:.2f}%</b>\n"
+        f"<i>Not financial advice.</i>"
     )
     await chat.send_photo(photo=image, caption=stats_text, parse_mode="HTML")
