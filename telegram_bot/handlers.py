@@ -4,6 +4,7 @@ Mirrors the three things the Streamlit dashboard showed per ticker (price +
 sentiment chart, strategy-vs-benchmark backtest chart, recent posts table),
 plus push-style `/subscribe` alerts that a passive web dashboard can't do.
 """
+import asyncio
 import html
 import logging
 
@@ -24,19 +25,26 @@ from telegram_bot.state import store
 logger = logging.getLogger(__name__)
 
 _WELCOME = (
-    "📈 <b>Stock Sentiment Bot</b>\n\n"
-    "I track FinBERT-scored sentiment from news/forum posts alongside price "
-    "action and a sentiment-crossing backtest.\n\n"
-    "<b>Commands</b>\n"
+    "📈 <b>Sentinel</b>\n\n"
+    "I track FinBERT-scored sentiment from real news/forum posts, watch for "
+    "pre/post-market price moves, and flag key US macro releases — each with the "
+    "<i>why</i> attached. Not financial advice.\n\n"
+    "<b>Sentiment</b>\n"
     "/ticker - pick a ticker\n"
     "/window - pick a rolling sentiment window\n"
     "/price - price + sentiment chart\n"
     "/backtest - strategy vs. buy &amp; hold\n"
     "/posts - recent scored posts\n"
-    "/subscribe - get alerted on entry/exit crossings\n"
-    "/unsubscribe - stop alerts\n"
-    "/status - show your current settings\n"
-    "/refresh - force-reload underlying data"
+    "/subscribe - alert on sentiment crossings\n"
+    "/unsubscribe - stop sentiment alerts\n\n"
+    "<b>Price moves &amp; macro</b>\n"
+    "/watch SYM - alert on pre/post-market moves in SYM\n"
+    "/unwatch SYM - stop watching SYM\n"
+    "/why [SYM] - explain today's move (grounded in news)\n"
+    "/macro on|off - market-wide macro release alerts\n\n"
+    "<b>Other</b>\n"
+    "/status - show your settings\n"
+    "/refresh - force-reload data"
 )
 
 
@@ -59,10 +67,13 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     state = store.get(update.effective_chat.id)
+    watched = ", ".join(f"${t}" for t in state.watched_tickers) or "none"
     await update.message.reply_html(
         f"Ticker: <b>${state.ticker}</b>\n"
         f"Window: <b>{state.window}</b>\n"
-        f"Alerts: <b>{'on' if state.subscribed else 'off'}</b>"
+        f"Sentiment alerts: <b>{'on' if state.subscribed else 'off'}</b>\n"
+        f"Watched (price moves): <b>{watched}</b>\n"
+        f"Macro alerts: <b>{'on' if state.macro_opt_in else 'off'}</b>"
     )
 
 
@@ -138,6 +149,74 @@ async def subscribe_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def unsubscribe_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     store.update(update.effective_chat.id, subscribed=False)
     await update.message.reply_text("Unsubscribed from sentiment alerts.")
+
+
+async def watch_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not context.args:
+        await update.message.reply_text("Usage: /watch SYM  (e.g. /watch NVDA)")
+        return
+    ticker = context.args[0].upper().lstrip("$")
+    if ticker not in settings.TICKERS:
+        await update.message.reply_text(
+            f"I only track {', '.join(settings.TICKERS)} right now. "
+            f"Add {ticker} to TICKERS to watch it."
+        )
+        return
+    store.add_watch(update.effective_chat.id, ticker)
+    await update.message.reply_text(
+        f"Watching ${ticker}. I'll ping you on significant pre/post-market moves, "
+        "with the likely reason from the news."
+    )
+
+
+async def unwatch_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not context.args:
+        await update.message.reply_text("Usage: /unwatch SYM")
+        return
+    ticker = context.args[0].upper().lstrip("$")
+    store.remove_watch(update.effective_chat.id, ticker)
+    await update.message.reply_text(f"Stopped watching ${ticker}.")
+
+
+async def macro_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    arg = (context.args[0].lower() if context.args else "")
+    if arg not in {"on", "off"}:
+        await update.message.reply_text("Usage: /macro on   or   /macro off")
+        return
+    store.set_macro(update.effective_chat.id, arg == "on")
+    if arg == "on":
+        await update.message.reply_text(
+            "Macro alerts on. I'll message you when key US releases print "
+            "(Fed, CPI, PCE, jobs, GDP) with what it means."
+        )
+    else:
+        await update.message.reply_text("Macro alerts off.")
+
+
+async def why_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    state = store.get(update.effective_chat.id)
+    ticker = (context.args[0].upper().lstrip("$") if context.args else state.ticker)
+    if ticker not in settings.TICKERS:
+        await update.message.reply_text(
+            f"I only track {', '.join(settings.TICKERS)} right now."
+        )
+        return
+    await update.effective_chat.send_action("typing")
+    try:
+        from telegram_bot import explain_service
+        from telegram_bot.messages import format_price_move
+
+        result = await asyncio.to_thread(explain_service.why, ticker)
+    except Exception:  # noqa: BLE001
+        logger.exception("/why failed for %s", ticker)
+        await update.message.reply_text(f"I couldn't pull ${ticker} just now — try again shortly.")
+        return
+    if result is None:
+        await update.message.reply_text(f"No live price for ${ticker} right now.")
+        return
+    msg = format_price_move(result.ticker, result.pct, result.session,
+                            result.ref_price, result.last, result.explanation)
+    await update.message.reply_html(msg)
 
 
 async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -22,6 +22,10 @@ class ChatState:
     subscribed: bool = False
     # ticker -> last alerted signal ISO timestamp, so `/subscribe` never re-fires on the same crossing
     last_alert: dict = field(default_factory=dict)
+    # Feature 2: tickers this chat wants pre/post-market price-move alerts for
+    watched_tickers: list = field(default_factory=list)
+    # Feature 3: opt-in to market-wide macro release alerts
+    macro_opt_in: bool = False
 
 
 class StateStore:
@@ -72,6 +76,40 @@ class StateStore:
     def subscribed_chat_ids(self) -> list[int]:
         with self._lock:
             return [int(chat_id) for chat_id, state in self._chats.items() if state.subscribed]
+
+    # --- Feature 2: per-ticker price-move watches ------------------------
+    def add_watch(self, chat_id: int, ticker: str) -> ChatState:
+        key = str(chat_id)
+        ticker = ticker.upper()
+        with self._lock:
+            state = self._chats.setdefault(key, ChatState())
+            if ticker not in state.watched_tickers:
+                state.watched_tickers.append(ticker)
+                self._save()
+            return state
+
+    def remove_watch(self, chat_id: int, ticker: str) -> ChatState:
+        key = str(chat_id)
+        ticker = ticker.upper()
+        with self._lock:
+            state = self._chats.setdefault(key, ChatState())
+            if ticker in state.watched_tickers:
+                state.watched_tickers.remove(ticker)
+                self._save()
+            return state
+
+    def watchers_for(self, ticker: str) -> list[int]:
+        ticker = ticker.upper()
+        with self._lock:
+            return [int(cid) for cid, s in self._chats.items() if ticker in s.watched_tickers]
+
+    # --- Feature 3: market-wide macro opt-in ----------------------------
+    def set_macro(self, chat_id: int, on: bool) -> ChatState:
+        return self.update(chat_id, macro_opt_in=on)
+
+    def macro_opt_in_chat_ids(self) -> list[int]:
+        with self._lock:
+            return [int(cid) for cid, s in self._chats.items() if s.macro_opt_in]
 
 
 store = StateStore()

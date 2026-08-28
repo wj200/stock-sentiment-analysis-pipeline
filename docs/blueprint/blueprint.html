@@ -1238,8 +1238,11 @@ PRICE_MOVE_PCT=3.0  PRICE_MOVE_Z=2.5   <span class="c"># Feature 2 detection</sp
     <span class="pill p-todo">to build</span> new.</p>
   <div class="callout note"><span class="ct">Build log — 2026-08-28</span>
     Build pass 1: the synthetic post generator was removed and replaced with real ingestion sources
-    (<b>A5</b>); the rolling z-score anomaly signal was added (<b>A4</b>). Both are code-complete with green unit
-    tests. Note on verification: <b>live</b> end-to-end runs (Kafka + Spark + the FinBERT model download) and every
+    (<b>A5</b>); the rolling z-score anomaly signal was added (<b>A4</b>). Build pass 2: the retrieval-grounded
+    explainer with structural no-advice/citation guardrails (<b>B3</b>), the price-move &amp; macro bot commands
+    <code>/watch /unwatch /macro /why</code> (<b>B1, C1, B5</b>), and a keyless yfinance move-detection helper.
+    All code-complete with green unit tests (39). Note on verification: <b>live</b> end-to-end runs (Kafka + Spark +
+    the FinBERT model download) and every
     keyed source execute in <b>your Docker environment</b> with your credentials — the build sandbox has no network
     path to Telegram, Reddit, Alpaca, Finnhub, FRED, or HuggingFace, so a &ldquo;built&rdquo; pill here means
     code-complete and logic-tested, with live verification handed to you. Credentials needed per track are listed at
@@ -1304,9 +1307,9 @@ PRICE_MOVE_PCT=3.0  PRICE_MOVE_Z=2.5   <span class="c"># Feature 2 detection</sp
   <!-- Track B -->
   <div class="track-head"><span class="tk">Track B — Feature 2: Pre/post-market price-move + why</span><span class="tg">tape → explanation</span></div>
   <div class="mstone">
-    <div class="mh"><span class="mid">B1</span><span class="mt">Watch subscriptions</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
-    <code>/watch SYM</code> / <code>/unwatch SYM</code>; <code>watched_tickers</code> on <code>ChatState</code>.
-    <div class="done"><b>Done when:</b> <code>/watch NVDA</code> persists across restart and <code>/status</code> lists watched tickers.</div>
+    <div class="mh"><span class="mid">B1</span><span class="mt">Watch subscriptions</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    <code>/watch SYM</code> / <code>/unwatch SYM</code>; <code>watched_tickers</code> on <code>ChatState</code>, persisted to the JSON store; <code>/status</code> lists them.
+    <div class="done"><b>Done when:</b> <code>/watch NVDA</code> persists across restart and <code>/status</code> lists watched tickers. ✓ <code>tests/test_state_and_messages.py</code>.</div>
   </div>
   <div class="mstone">
     <div class="mh"><span class="mid">B2</span><span class="mt">Extended-hours price monitor</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
@@ -1314,9 +1317,11 @@ PRICE_MOVE_PCT=3.0  PRICE_MOVE_Z=2.5   <span class="c"># Feature 2 detection</sp
     <div class="done"><b>Done when:</b> a simulated pre-market −5% gap on a watched ticker produces exactly one <code>stock-price-alerts</code> record with the correct pct/direction/session, and a 0.3% wiggle produces none.</div>
   </div>
   <div class="mstone">
-    <div class="mh"><span class="mid">B3</span><span class="mt">News retrieval + LLM explainer</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
-    <code>explain/news_retrieval.py</code> (Finnhub top-N) + <code>explain/llm_provider.py</code> + grounded, cited prompt; refuse when thin. Full spec §17.
-    <div class="done"><b>Done when:</b> given a real ticker + headlines the explainer returns a &lt;60-word cited &ldquo;why&rdquo;; given empty headlines it returns the no-catalyst line, never a fabricated reason (unit-tested).</div>
+    <div class="mh"><span class="mid">B3</span><span class="mt">News retrieval + LLM explainer</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    <code>explain/</code>: <code>news_retrieval.py</code> (Finnhub top-N), <code>llm_provider.py</code> (Anthropic, pluggable),
+    <code>prompts.py</code> (grounded + cited + structural no-advice/word-cap/citation validation), <code>explainer.py</code>
+    (degrade-never-fabricate). Full spec §17.
+    <div class="done"><b>Done when:</b> given headlines the explainer returns a cited &ldquo;why&rdquo;; given none it returns the no-catalyst line; advice/injection outputs are rejected and degraded, never fabricated. ✓ <code>tests/test_explainer.py</code>. <b>Live needs</b> FINNHUB_API_KEY + ANTHROPIC_API_KEY.</div>
   </div>
   <div class="mstone">
     <div class="mh"><span class="mid">B4</span><span class="mt">Dispatcher fan-out</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
@@ -1324,9 +1329,9 @@ PRICE_MOVE_PCT=3.0  PRICE_MOVE_Z=2.5   <span class="c"># Feature 2 detection</sp
     <div class="done"><b>Done when:</b> one injected alert reaches only the ticker's watchers, once, explained; a replay of the same record sends nothing.</div>
   </div>
   <div class="mstone">
-    <div class="mh"><span class="mid">B5</span><span class="mt">On-demand <code>/why</code></span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
-    Pull path reusing B3 for the active ticker's latest notable move; cache-first.
-    <div class="done"><b>Done when:</b> <code>/why</code> answers for a moving ticker and repeated asks return the identical cached explanation instantly.</div>
+    <div class="mh"><span class="mid">B5</span><span class="mt">On-demand <code>/why</code></span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    <code>/why [SYM]</code> → <code>telegram_bot/explain_service.py</code>: real quote (keyless yfinance / Alpaca) → move → B3 explainer, cache-first, run off-thread.
+    <div class="done"><b>Done when:</b> <code>/why</code> answers for a moving ticker and repeated asks return the identical cached explanation instantly. ✓ Wired + explainer cache tested. <b>Live needs</b> the news/LLM keys above.</div>
   </div>
   <div class="mstone">
     <div class="mh"><span class="mid">B6</span><span class="mt">Audit + degraded modes</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
@@ -1337,9 +1342,9 @@ PRICE_MOVE_PCT=3.0  PRICE_MOVE_Z=2.5   <span class="c"># Feature 2 detection</sp
   <!-- Track C -->
   <div class="track-head"><span class="tk">Track C — Feature 3: US macro release + why</span><span class="tg">Washington → broadcast</span></div>
   <div class="mstone">
-    <div class="mh"><span class="mid">C1</span><span class="mt">Macro opt-in</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
-    <code>/macro on|off</code> → <code>macro_opt_in</code>.
-    <div class="done"><b>Done when:</b> opt-in persists and <code>/status</code> shows macro state.</div>
+    <div class="mh"><span class="mid">C1</span><span class="mt">Macro opt-in</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    <code>/macro on|off</code> → <code>macro_opt_in</code> on <code>ChatState</code>; <code>store.macro_opt_in_chat_ids()</code> is the broadcast list.
+    <div class="done"><b>Done when:</b> opt-in persists and <code>/status</code> shows macro state. ✓ <code>tests/test_state_and_messages.py</code>.</div>
   </div>
   <div class="mstone">
     <div class="mh"><span class="mid">C2</span><span class="mt">Release calendar + detection</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>

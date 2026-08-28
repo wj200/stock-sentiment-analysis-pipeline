@@ -36,6 +36,10 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("posts", handlers.posts_command))
     application.add_handler(CommandHandler("subscribe", handlers.subscribe_command))
     application.add_handler(CommandHandler("unsubscribe", handlers.unsubscribe_command))
+    application.add_handler(CommandHandler("watch", handlers.watch_command))
+    application.add_handler(CommandHandler("unwatch", handlers.unwatch_command))
+    application.add_handler(CommandHandler("macro", handlers.macro_command))
+    application.add_handler(CommandHandler("why", handlers.why_command))
     application.add_handler(CallbackQueryHandler(handlers.callback_query_handler))
 
     application.job_queue.run_repeating(
