@@ -8,8 +8,25 @@ x-app-build: &app-build
 x-app-env: &app-env
   KAFKA_BOOTSTRAP_SERVERS: kafka:29092
   DATA_ROOT: /app/data
-  TICKERS: "AAPL,NVDA,TSLA,MSFT"
+  TICKERS: ${TICKERS:-AAPL,NVDA,TSLA,MSFT}
   FINBERT_MODEL_NAME: yiyanghkust/finbert-tone
+  # ingestion (Feature 1)
+  INGEST_SOURCES: ${INGEST_SOURCES:-rss}
+  INGEST_POLL_SECONDS: ${INGEST_POLL_SECONDS:-60}
+  REDDIT_CLIENT_ID: ${REDDIT_CLIENT_ID:-}
+  REDDIT_CLIENT_SECRET: ${REDDIT_CLIENT_SECRET:-}
+  REDDIT_USER_AGENT: ${REDDIT_USER_AGENT:-sentinel-sentiment-bot/1.0}
+  REDDIT_SUBREDDITS: ${REDDIT_SUBREDDITS:-wallstreetbets,stocks,investing,StockMarket}
+  # market data (Features 1 & 2)
+  MARKET_DATA_PROVIDER: ${MARKET_DATA_PROVIDER:-yfinance}
+  ALPACA_API_KEY: ${ALPACA_API_KEY:-}
+  ALPACA_API_SECRET: ${ALPACA_API_SECRET:-}
+  ALPACA_DATA_FEED: ${ALPACA_DATA_FEED:-iex}
+  # news + macro + LLM (Features 2 & 3)
+  FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
+  FRED_API_KEY: ${FRED_API_KEY:-}
+  LLM_PROVIDER: ${LLM_PROVIDER:-anthropic}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
 
 services:
   zookeeper:
@@ -63,7 +80,7 @@ services:
         condition: service_healthy
     environment:
       <<: *app-env
-    command: ["python", "-m", "ingestion.kafka_producer", "--rate", "5"]
+    command: ["python", "-m", "ingestion.kafka_producer", "--poll", "60"]
     volumes:
       - ./data:/app/data
     restart: unless-stopped

@@ -1,6 +1,7 @@
 """Turns aligned sentiment+price data into rolling sentiment features and trade signals."""
 import logging
 
+import numpy as np
 import pandas as pd
 
 from config import settings
@@ -66,7 +67,62 @@ def generate_signals(
     return df.groupby("ticker", group_keys=False).apply(_signals_for_ticker)
 
 
+def add_sentiment_zscore(
+    df: pd.DataFrame,
+    window: str = settings.SENTIMENT_Z_WINDOW,
+) -> pd.DataFrame:
+    """Adds a `sentiment_z` column: how anomalous each bar's sentiment is vs. its
+    own trailing baseline (milestone A4).
+
+    The baseline (rolling mean/std of `avg_sentiment`) is computed over `window`
+    and then **shifted by one bar**, so a bar at time t is compared only to
+    sentiment strictly before t — the current value never contributes to the
+    distribution it is judged against, and there is no lookahead.
+    """
+    df = df.sort_values(["ticker", "timestamp"]).copy()
+
+    def _per_ticker(group: pd.DataFrame) -> pd.DataFrame:
+        group = group.copy()
+        series = group.set_index("timestamp")["avg_sentiment"]
+        roll = series.rolling(window, min_periods=3)
+        baseline_mean = roll.mean().shift(1)
+        baseline_std = roll.std(ddof=0).shift(1).replace(0.0, np.nan)
+        z = (series - baseline_mean) / baseline_std
+        group["sentiment_z"] = z.to_numpy()
+        return group
+
+    df = df.groupby("ticker", group_keys=False).apply(_per_ticker)
+    return df
+
+
+def generate_zscore_signals(
+    df: pd.DataFrame,
+    z_threshold: float = settings.SENTIMENT_Z_THRESHOLD,
+    min_posts: int = settings.SENTIMENT_Z_MIN_POSTS,
+) -> pd.DataFrame:
+    """Adds boolean z-score alert columns.
+
+    A bar fires when its sentiment is `z_threshold` sigma away from its trailing
+    baseline AND the window carried at least `min_posts` posts (so a single
+    stray post on a quiet name can't trip it). This adapts per ticker and reacts
+    to *changes* in sentiment, not absolute levels — the "beyond a threshold"
+    leading indicator in the brief.
+    """
+    df = df.copy()
+    if "sentiment_z" not in df.columns:
+        raise ValueError("Missing 'sentiment_z'; call add_sentiment_zscore first.")
+
+    enough = df["post_count"] >= min_posts if "post_count" in df.columns else True
+    z = df["sentiment_z"]
+    df["zscore_bullish"] = ((z >= z_threshold) & enough).fillna(False)
+    df["zscore_bearish"] = ((z <= -z_threshold) & enough).fillna(False)
+    df["zscore_alert"] = df["zscore_bullish"] | df["zscore_bearish"]
+    return df
+
+
 def build_signal_frame(aligned_df: pd.DataFrame, signal_window_label: str = "1h") -> pd.DataFrame:
-    """End-to-end: aligned data -> rolling sentiment -> entry/exit signals."""
+    """End-to-end: aligned data -> rolling sentiment -> entry/exit + z-score signals."""
     with_rolling = add_rolling_sentiment(aligned_df)
-    return generate_signals(with_rolling, signal_window_label=signal_window_label)
+    with_signals = generate_signals(with_rolling, signal_window_label=signal_window_label)
+    with_z = add_sentiment_zscore(with_signals)
+    return generate_zscore_signals(with_z)

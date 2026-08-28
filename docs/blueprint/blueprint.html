@@ -1,0 +1,1624 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sentinel — Technical Blueprint</title>
+<script src="mermaid.min.js"></script>
+<script>
+  if (window.mermaid) {
+    window.mermaid.initialize({
+      startOnLoad: false,
+      theme: "neutral",
+      securityLevel: "loose",
+      flowchart: { htmlLabels: true, curve: "basis", useMaxWidth: true },
+      sequence: { useMaxWidth: true },
+      er: { useMaxWidth: true },
+      fontFamily: "Helvetica, Arial, sans-serif",
+    });
+  }
+</script>
+<style>
+  :root{
+    --ink:#0e1726; --body:#1e2a3a; --muted:#5b6b80; --faint:#8a97a8;
+    --line:#d8dfe8; --line2:#e8edf3; --bg:#ffffff; --panel:#f5f7fa; --panel2:#eef2f7;
+    --accent:#0e7c86; --accent2:#1f5fd0; --ink2:#12325a;
+    --pos:#158a4e; --neg:#c93a26; --warn:#a4600a; --purple:#6b3fb5;
+    --code-bg:#f4f6f9; --code-ink:#22303f; --code-line:#e3e8ef;
+  }
+  *{box-sizing:border-box;}
+  html{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  body{
+    margin:0; color:var(--body); background:var(--bg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    font-size:10.2px; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4{ color:var(--ink); font-weight:700; line-height:1.2; margin:0; }
+  p{ margin:0 0 7px; }
+  a{ color:var(--accent2); text-decoration:none; }
+  code{ font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:.92em;
+        background:var(--panel2); padding:.5px 3px; border-radius:3px; color:var(--code-ink); }
+  strong{ color:var(--ink); }
+
+  /* ---------- cover ---------- */
+  .cover{ height:calc(100vh - 0px); min-height:250mm; display:flex; flex-direction:column;
+          justify-content:space-between; padding:4mm 2mm 6mm; break-after:page; }
+  .cover-top{ display:flex; align-items:center; gap:9px; color:var(--muted);
+              font-size:9px; letter-spacing:2.5px; text-transform:uppercase; }
+  .logo-dot{ width:11px;height:11px;border-radius:50%;
+             background:linear-gradient(135deg,var(--accent),var(--accent2)); box-shadow:0 0 0 3px rgba(14,124,134,.12); }
+  .cover-mid{ margin-top:auto; }
+  .cover h1{ font-size:44px; letter-spacing:-1px; line-height:1.02; color:var(--ink); }
+  .cover .sub{ font-size:15px; color:var(--ink2); font-weight:600; margin-top:10px; max-width:150mm; }
+  .cover .lede{ font-size:10.5px; color:var(--muted); margin-top:14px; max-width:150mm; line-height:1.6; }
+  .cover-rule{ height:3px; width:70mm; margin:18px 0 0;
+               background:linear-gradient(90deg,var(--accent),var(--accent2) 55%,transparent); border-radius:3px;}
+  .cover-meta{ margin-top:20px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px 22px; max-width:150mm; }
+  .cover-meta div{ font-size:9.2px; color:var(--muted); padding:5px 0; border-top:1px solid var(--line2); }
+  .cover-meta b{ color:var(--ink); font-weight:600; }
+  .cover-foot{ margin-top:16px; font-size:8.4px; color:var(--faint); max-width:160mm; line-height:1.55; }
+  .stack-chips{ margin-top:16px; display:flex; flex-wrap:wrap; gap:5px; max-width:158mm; }
+  .stack-chips span{ font-size:8px; letter-spacing:.4px; color:var(--ink2); background:var(--panel);
+                     border:1px solid var(--line); border-radius:20px; padding:3px 8px; }
+
+  /* ---------- sections ---------- */
+  .doc-section{ break-before:page; padding-top:2px; }
+  .sec-head{ display:flex; align-items:flex-end; gap:11px; border-bottom:2px solid var(--ink);
+             padding-bottom:6px; margin-bottom:11px; }
+  .sec-num{ font-size:24px; font-weight:800; color:var(--accent);
+            font-family:"SF Mono",ui-monospace,monospace; line-height:.9; letter-spacing:-1px; }
+  .sec-title{ font-size:17px; }
+  .sec-kicker{ margin-left:auto; font-size:8px; color:var(--faint); letter-spacing:1.5px;
+               text-transform:uppercase; padding-bottom:2px; }
+  h2.blk{ font-size:12.5px; margin:14px 0 6px; color:var(--ink2);
+          display:flex; align-items:center; gap:7px; }
+  h2.blk::before{ content:""; width:4px; height:13px; background:var(--accent); border-radius:2px; display:inline-block; }
+  h3.sub{ font-size:10.8px; margin:11px 0 4px; color:var(--ink); }
+  h4.mini{ font-size:10px; margin:9px 0 3px; color:var(--ink2); text-transform:uppercase; letter-spacing:.6px; }
+
+  ul,ol{ margin:0 0 8px; padding-left:16px; }
+  li{ margin:2px 0; }
+  li::marker{ color:var(--accent); }
+
+  /* ---------- tables ---------- */
+  table{ width:100%; border-collapse:collapse; margin:6px 0 11px; font-size:9.1px; }
+  th,td{ text-align:left; vertical-align:top; padding:5px 7px; border-bottom:1px solid var(--line2); }
+  thead th{ background:var(--ink); color:#fff; font-weight:600; font-size:8.6px;
+            text-transform:uppercase; letter-spacing:.5px; border-bottom:none; }
+  thead th:first-child{ border-top-left-radius:4px; }
+  thead th:last-child{ border-top-right-radius:4px; }
+  tbody tr:nth-child(even){ background:var(--panel); }
+  tr{ break-inside:avoid; }
+  table.tight td, table.tight th{ padding:4px 6px; font-size:8.8px; }
+  td code{ font-size:8.6px; white-space:nowrap; }
+
+  /* ---------- callouts ---------- */
+  .callout{ border:1px solid var(--line); border-left-width:4px; border-radius:5px;
+            padding:8px 11px; margin:9px 0; background:var(--panel); break-inside:avoid; font-size:9.4px; }
+  .callout .ct{ font-weight:700; font-size:8.6px; letter-spacing:.7px; text-transform:uppercase; display:block; margin-bottom:3px; }
+  .callout.note{ border-left-color:var(--accent2); } .callout.note .ct{ color:var(--accent2); }
+  .callout.warn{ border-left-color:var(--warn); background:#fdf7ee; } .callout.warn .ct{ color:var(--warn); }
+  .callout.danger{ border-left-color:var(--neg); background:#fdf1ef; } .callout.danger .ct{ color:var(--neg); }
+  .callout.ok{ border-left-color:var(--pos); background:#eef8f1; } .callout.ok .ct{ color:var(--pos); }
+
+  /* ---------- code ---------- */
+  pre.code{ background:var(--code-bg); border:1px solid var(--code-line); border-radius:6px;
+            padding:9px 11px; margin:7px 0 11px; overflow-x:auto; break-inside:avoid;
+            font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:8.5px;
+            line-height:1.5; color:var(--code-ink); white-space:pre; }
+  pre.code .c{ color:var(--faint); } /* comment */
+  pre.code .k{ color:var(--purple); font-weight:600; }
+  pre.code .s{ color:var(--pos); }
+
+  /* ---------- diagrams ---------- */
+  .diagram{ margin:10px 0 6px; padding:9px; border:1px solid var(--line);
+            border-radius:7px; background:var(--panel); text-align:center; break-inside:avoid; }
+  .mermaid-rendered svg{ max-width:100%; height:auto; }
+  .fig-cap{ font-size:8.2px; color:var(--muted); margin-top:5px; text-align:center; font-style:italic; }
+
+  /* ---------- chips / pills ---------- */
+  .pill{ display:inline-block; font-size:7.6px; font-weight:700; letter-spacing:.4px;
+         padding:1.5px 6px; border-radius:20px; text-transform:uppercase; vertical-align:middle; }
+  .p-free{ background:#e6f4ec; color:var(--pos); } .p-tier{ background:#eaf1fb; color:var(--accent2); }
+  .p-paid{ background:#fdeeea; color:var(--neg); } .p-built{ background:#e6f4ec; color:var(--pos); }
+  .p-todo{ background:#fdf3e6; color:var(--warn); } .p-part{ background:#eef0f4; color:var(--muted); }
+
+  /* ---------- misc blocks ---------- */
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+  .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
+  .card{ border:1px solid var(--line); border-radius:6px; padding:9px 11px; background:#fff; break-inside:avoid; }
+  .card h4{ font-size:10px; margin-bottom:4px; color:var(--ink2); }
+  .kv{ font-size:8.8px; }
+  .lead{ font-size:10.6px; color:var(--ink2); line-height:1.55; margin-bottom:9px; }
+  .toc{ columns:2; column-gap:26px; font-size:9.4px; }
+  .toc div{ padding:3px 0; border-bottom:1px solid var(--line2); break-inside:avoid; display:flex; gap:8px;}
+  .toc .tn{ color:var(--accent); font-weight:700; font-family:"SF Mono",monospace; min-width:18px; }
+  .done{ border:1px solid #bfe3cd; background:#eef8f1; border-radius:5px; padding:5px 9px; margin:5px 0 2px; font-size:8.9px; break-inside:avoid;}
+  .done b{ color:var(--pos); }
+  .mstone{ break-inside:avoid; border:1px solid var(--line); border-radius:6px; padding:8px 10px; margin:7px 0; background:#fff;}
+  .mstone .mh{ display:flex; align-items:center; gap:8px; margin-bottom:3px;}
+  .mstone .mid{ font-family:"SF Mono",monospace; font-weight:800; color:var(--ink2); font-size:9.6px;
+                background:var(--panel2); border-radius:4px; padding:1px 6px; }
+  .mstone .mt{ font-weight:700; color:var(--ink); font-size:10px; }
+  .track-head{ display:flex; align-items:center; gap:9px; margin:14px 0 4px; padding:6px 10px; border-radius:6px;
+               background:linear-gradient(90deg,var(--panel2),#fff); border:1px solid var(--line); break-inside:avoid;}
+  .track-head .tk{ font-weight:800; font-size:11px; color:var(--ink); }
+  .track-head .tg{ margin-left:auto; font-size:8px; letter-spacing:1px; text-transform:uppercase; color:var(--muted);}
+  .cutline{ text-align:center; margin:14px 0; font-weight:800; color:var(--neg); letter-spacing:2px; font-size:10px;
+            border-top:2px dashed var(--neg); border-bottom:2px dashed var(--neg); padding:6px 0; }
+  hr.soft{ border:none; border-top:1px solid var(--line2); margin:11px 0; }
+  .small{ font-size:8.6px; color:var(--muted); }
+  .disclaimer{ border:2px solid var(--neg); border-radius:7px; padding:10px 13px; background:#fdf1ef; margin:10px 0; }
+  .disclaimer .ct{ color:var(--neg); font-weight:800; letter-spacing:.6px; text-transform:uppercase; font-size:9px; display:block; margin-bottom:4px;}
+</style>
+</head>
+<body>
+
+<!-- ============================== COVER ============================== -->
+<div class="cover">
+  <div class="cover-top"><span class="logo-dot"></span><span>Sentinel&nbsp;·&nbsp;Design&nbsp;Reference</span></div>
+  <div class="cover-mid">
+    <h1>Sentinel</h1>
+    <div class="sub">A Telegram bot for social-media sentiment, pre/post-market price moves, and US macroeconomic releases — with the &ldquo;why&rdquo; attached.</div>
+    <div class="cover-rule"></div>
+    <div class="lede">
+      One chat interface over a streaming data platform. Kafka ingests news and forum chatter; Spark Structured
+      Streaming scores every message with FinBERT and lands it in a Delta Lake lakehouse; a point-in-time-safe
+      alignment turns sentiment into a leading indicator that is backtested before it is ever trusted. On top of
+      that sit three push features: a <b>sentiment leading-indicator alert</b>, a <b>pre/post-market price-move
+      explainer</b>, and a <b>US macro-release explainer</b> — each one grounded in real data and each one honest
+      about what it does not know.
+    </div>
+    <div class="stack-chips">
+      <span>Telegram Bot API</span><span>Apache Kafka</span><span>PySpark Structured Streaming</span>
+      <span>Delta Lake</span><span>FinBERT · transformers</span><span>Ray</span><span>vectorbt</span>
+      <span>yfinance · Alpaca</span><span>FRED · BLS</span><span>Finnhub news</span><span>LLM explainer (Claude API)</span>
+      <span>Streamlit</span><span>Docker Compose</span>
+    </div>
+    <div class="cover-meta">
+      <div><b>Document</b> — Technical blueprint &amp; delivery plan</div>
+      <div><b>Interface</b> — Telegram bot (commands + push alerts)</div>
+      <div><b>Repository</b> — stock-sentiment-analysis-pipeline</div>
+      <div><b>Features</b> — 3 (sentiment · price-move · macro)</div>
+      <div><b>Status</b> — Feature 1 largely built; 2 &amp; 3 specified</div>
+      <div><b>Sections</b> — 01–17</div>
+    </div>
+    <div class="cover-foot">
+      Written from the code that exists in the repository, not from aspiration: every architectural claim about the
+      sentiment pipeline maps to a module under <code>ingestion/</code>, <code>data_pipeline/</code>,
+      <code>ml_engine/</code>, <code>quant_backtest/</code>, and <code>telegram_bot/</code>. Work that is designed
+      but not yet built is labelled <span class="pill p-todo">to build</span> rather than described as if it shipped.
+      Figures for third-party quotas and pricing were reasonable at time of writing and must be re-verified before launch.
+    </div>
+  </div>
+</div>
+
+<!-- ============================== CONTENTS ============================== -->
+<section class="doc-section">
+  <div class="sec-head"><div class="sec-num">00</div><div class="sec-title">Contents</div>
+    <div class="sec-kicker">Blueprint map</div></div>
+  <div class="toc">
+    <div><span class="tn">01</span><span>Executive Summary &amp; System Architecture</span></div>
+    <div><span class="tn">02</span><span>Technology Stack</span></div>
+    <div><span class="tn">03</span><span>Telegram Bot Channel</span></div>
+    <div><span class="tn">04</span><span>Data Sources &amp; Ingestion</span></div>
+    <div><span class="tn">05</span><span>AI / ML Processing Pipelines</span></div>
+    <div><span class="tn">06</span><span>NLP &amp; the FinBERT Sentiment Engine</span></div>
+    <div><span class="tn">07</span><span>Feature-by-Feature Implementation</span></div>
+    <div><span class="tn">08</span><span>Data Layer: Kafka Topics &amp; Delta Tables</span></div>
+    <div><span class="tn">09</span><span>Services, Endpoints &amp; Background Jobs</span></div>
+    <div><span class="tn">10</span><span>Security, Logging &amp; Error Handling</span></div>
+    <div><span class="tn">11</span><span>Testing Strategy</span></div>
+    <div><span class="tn">12</span><span>Deployment &amp; Folder Structure</span></div>
+    <div><span class="tn">13</span><span>Development Roadmap (per-feature milestones)</span></div>
+    <div><span class="tn">14</span><span>Cost, Scalability, Risks &amp; Future Work</span></div>
+    <div><span class="tn">16</span><span>Bot Persona, Limitations &amp; Guardrails</span></div>
+    <div><span class="tn">17</span><span>Deep Spec — Price-Move Explanation Engine</span></div>
+  </div>
+  <div class="callout note" style="margin-top:14px;">
+    <span class="ct">How to read this</span>
+    The three product features map to three delivery tracks in §13. Feature&nbsp;1 (sentiment) is the streaming
+    backbone and is largely implemented today; Features&nbsp;2 (price-move alerts) and 3 (macro alerts) reuse that
+    backbone and are specified here as new work. Sections 01–12 describe the whole system; §13 is where each feature
+    becomes a sequence of independently verifiable milestones; §16–17 cover the parts a reviewer will scrutinise
+    hardest — the &ldquo;not financial advice&rdquo; guardrails and the retrieval-grounded explainer.
+  </div>
+</section>
+
+<!-- ============================== 01 ============================== -->
+<section class="doc-section">
+  <div class="sec-head"><div class="sec-num">01</div><div class="sec-title">Executive Summary &amp; System Architecture</div>
+    <div class="sec-kicker">Brief §1–2</div></div>
+
+  <h2 class="blk">1.1 &nbsp;Project goal</h2>
+  <p class="lead">A trader opens one thing: a Telegram chat. Behind it, a streaming data platform is doing three jobs
+  at once.</p>
+  <p>It <b>reads the room</b> — ingesting forum posts and news wires, scoring each one with a financial-domain
+  language model, and pinging the user the moment aggregated sentiment on a ticker they follow crosses a threshold,
+  <em>before</em> the move shows up cleanly in price. It <b>watches the tape</b> — when a subscribed ticker gaps in
+  pre-market or post-market trading, it doesn't just say &ldquo;NVDA −6%&rdquo;, it answers <em>why</em>, grounded in
+  the headlines that actually broke. And it <b>watches Washington</b> — when the Fed, BLS, or BEA releases a number
+  that moves markets, it explains what printed, how it compares to consensus, and why it matters.</p>
+  <p>The design target: <b>zero dashboards to babysit</b>. A passive Streamlit dashboard exists for the builder;
+  the trader lives entirely in push notifications and a handful of slash commands.</p>
+
+  <h2 class="blk">1.2 &nbsp;Architecture in one paragraph</h2>
+  <p>Ingestion producers publish ticker-tagged text to <b>Kafka</b>. A <b>Spark Structured Streaming</b> job consumes
+  each micro-batch, writes it verbatim to a <b>Delta Lake</b> raw table for a full audit trail, scores it with
+  <b>FinBERT</b> through a pandas-UDF that loads the model once per executor, and merges the scored rows into a
+  second Delta table keyed on message id. A separate alignment step pulls OHLCV bars (yfinance or Alpaca), aggregates
+  sentiment into fixed windows, and joins them <b>point-in-time</b> — a bar at time <code>t</code> may only see
+  sentiment strictly before <code>t</code>, which is the single guard that keeps the <b>vectorbt</b> backtest honest.
+  The <b>Telegram bot</b> and the Streamlit dashboard both read those Delta tables through one cached data-service
+  layer. Two new market-event services — a price monitor and a macro monitor — publish structured alerts to their
+  own Kafka topics; a dispatcher fans them out to subscribed chats, attaching a retrieval-grounded explanation from a
+  hosted <b>LLM</b>. Everything runs as containers under one Docker Compose file.</p>
+
+  <h2 class="blk">1.3 &nbsp;Key design decisions</h2>
+  <table>
+    <thead><tr><th style="width:26%">Decision</th><th style="width:42%">Rationale</th><th>What it costs you</th></tr></thead>
+    <tbody>
+      <tr><td><b>Kafka + Spark + Delta, not a single Python script</b></td>
+        <td>The workload is genuinely a stream: unbounded, bursty, replayable. Kafka gives durable buffering and
+          back-pressure; Spark gives exactly-once micro-batch semantics; Delta gives ACID upserts and time-travel so
+          a replayed partition never double-counts. This is the honest shape of the problem, not resume-driven design.</td>
+        <td>Heavy footprint: a JVM, Zookeeper, a broker. Overkill at 4 tickers; the right call the moment the universe
+          or the source count grows. Named in §14 as the first thing to right-size <em>down</em> for a tiny demo.</td></tr>
+      <tr><td><b>FinBERT as the &ldquo;own ML pipeline&rdquo;, an LLM only for explanation</b></td>
+        <td>Sentiment scoring is a high-volume, low-latency classification job — a fine-tuned domain model
+          (<code>yiyanghkust/finbert-tone</code>) is faster, cheaper, and more reproducible than an LLM call per post.
+          The LLM is reserved for the low-volume, high-value job of <em>explaining</em> a price or macro move from
+          retrieved sources.</td>
+        <td>Two model stacks to operate. But they fail independently and scale independently, which is the point.</td></tr>
+      <tr><td><b>Point-in-time alignment, always</b></td>
+        <td><code>merge_asof(direction="backward", allow_exact_matches=False)</code> in
+          <code>data_pipeline/data_alignment.py</code>. A backtest that peeks at future sentiment is worse than no
+          backtest — it manufactures confidence. This guard is load-bearing for the whole &ldquo;leading indicator&rdquo; claim.</td>
+        <td>A sliver of signal is discarded at each bar boundary. Correct trade, every time.</td></tr>
+      <tr><td><b>Explanations are retrieval-grounded, never free-form</b></td>
+        <td>The LLM is handed the actual headlines / the actual release numbers and instructed to explain only from
+          them, cite them, and refuse when sources are thin. A bot that invents a reason a stock moved is worse than
+          one that says &ldquo;I don't have enough to say.&rdquo; See §16 GUARD-1.</td>
+        <td>Occasionally a terse &ldquo;no clear catalyst in the news yet&rdquo; instead of a satisfying story. That is the honest answer.</td></tr>
+      <tr><td><b>Sentiment as a leading indicator, proven by backtest — not asserted</b></td>
+        <td>The crossing signal is run through vectorbt against buy-and-hold before it is shipped. If it doesn't beat
+          the benchmark out-of-sample, that is information, and the bot reports the backtest stats rather than hiding them.</td>
+        <td>The headline feature must survive contact with its own P&amp;L curve. Deliberate.</td></tr>
+      <tr><td><b>One state store for the bot: a locked JSON file</b></td>
+        <td><code>telegram_bot/state.py</code>. Chat count is small; writes are rare (only on preference changes and
+          alert de-dup). No extra database service to run for a demo.</td>
+        <td>Single-instance only, and not the answer past a few thousand chats. Migration path to Postgres/Redis in §14.</td></tr>
+      <tr><td><b>Not financial advice, structurally</b></td>
+        <td>The bot reports data and explains events; it never recommends a trade. This is enforced by what the code
+          can and cannot emit (§16), not only by a footer disclaimer.</td>
+        <td>Slightly less &ldquo;actionable&rdquo;-sounding copy. The only defensible choice.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="blk">2.1 &nbsp;High-level architecture</h2>
+  <div class="diagram">
+    <pre class="mermaid">
+graph TB
+    subgraph Sources["External sources"]
+      RED["Reddit / X (PRAW · X API)"]
+      NEWS["News wires (Finnhub · RSS)"]
+      MKT["Market data (yfinance · Alpaca)"]
+      MAC["Macro (FRED · BLS · BEA)"]
+    end
+    subgraph Ingest["Ingestion (Kafka producers)"]
+      SP["social/news producer"]
+      PM["price monitor"]
+      MM["macro monitor"]
+    end
+    subgraph Bus["Apache Kafka"]
+      T1(["stock-raw-sentiment"])
+      T2(["stock-price-alerts"])
+      T3(["macro-events"])
+    end
+    subgraph Stream["Spark Structured Streaming"]
+      SS["micro-batch job · parse · dedupe"]
+      FB["FinBERT scoring (mapInPandas / Ray)"]
+    end
+    subgraph Lake["Delta Lake"]
+      D1[("raw_sentiment")]
+      D2[("scored_sentiment")]
+      D3[("market_prices")]
+      D4[("aligned_sentiment_price")]
+    end
+    subgraph Serve["Serving"]
+      ALN["align + signals (vectorbt backtest)"]
+      EXP["LLM explainer (retrieval-grounded)"]
+      DISP["alert dispatcher"]
+      BOT["Telegram bot"]
+      DASH["Streamlit dashboard"]
+    end
+    USER(["Trader on Telegram"])
+
+    RED --> SP --> T1
+    NEWS --> SP
+    MKT --> PM --> T2
+    MAC --> MM --> T3
+    T1 --> SS --> FB --> D2
+    SS --> D1
+    MKT --> D3
+    D2 --> ALN --> D4
+    D3 --> ALN
+    ALN --> BOT
+    ALN --> DASH
+    T2 --> DISP
+    T3 --> DISP
+    DISP --> EXP --> DISP
+    DISP --> BOT
+    BOT <--> USER
+    </pre>
+    <div class="fig-cap">Fig 1 — Kafka buffers, Spark scores, Delta stores, the bot serves. Solid backbone (sentiment) is built; the price/macro monitors, dispatcher, and explainer are the new work in Features 2–3.</div>
+  </div>
+
+  <h2 class="blk">2.2 &nbsp;Components</h2>
+  <table class="tight">
+    <thead><tr><th>Component</th><th>Responsibility</th><th>Module</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Social/news producer</td><td>Pull <b>real</b> posts — RSS (keyless) + Reddit/Finnhub (keyed) — and publish to Kafka. No synthetic data.</td><td><code>ingestion/kafka_producer.py</code>, <code>ingestion/sources/</code></td><td><span class="pill p-built">built</span></td></tr>
+      <tr><td>Kafka utilities</td><td>Topic creation, JSON (de)serialization, schema validation, tuned producer/consumer builders</td><td><code>ingestion/kafka_utils.py</code></td><td><span class="pill p-built">built</span></td></tr>
+      <tr><td>Streaming scorer</td><td>Kafka → parse → dedupe → raw Delta → FinBERT → scored Delta, in <code>foreachBatch</code></td><td><code>data_pipeline/spark_streaming.py</code></td><td><span class="pill p-built">built</span></td></tr>
+      <tr><td>Delta writer</td><td>ACID MERGE upserts keyed on id / (ticker,timestamp); partitioning; OPTIMIZE/ZORDER compaction</td><td><code>data_pipeline/delta_writer.py</code></td><td><span class="pill p-built">built</span></td></tr>
+      <tr><td>Alignment</td><td>Fetch OHLCV; window-aggregate sentiment; point-in-time <code>merge_asof</code></td><td><code>data_pipeline/data_alignment.py</code></td><td><span class="pill p-built">built</span></td></tr>
+      <tr><td>FinBERT model</td><td>Device-aware tokenizer+model wrapper; batch inference; process-local singleton</td><td><code>ml_engine/finbert_model.py</code></td><td><span class="pill p-built">built</span></td></tr>
+      <tr><td>Distributed inference</td><td>Ray actor pool + Spark pandas-UDF scoring path</td><td><code>ml_engine/distributed_inference.py</code></td><td><span class="pill p-built">built</span></td></tr>
+      <tr><td>Signal generator</td><td>Rolling sentiment features; entry/exit <em>crossing</em> signals</td><td><code>quant_backtest/signal_generator.py</code></td><td><span class="pill p-built">built</span></td></tr>
+      <tr><td>Backtester</td><td>vectorbt strategy vs. buy-and-hold; return/Sharpe/drawdown</td><td><code>quant_backtest/backtester.py</code></td><td><span class="pill p-built">built</span></td></tr>
+      <tr><td>Telegram bot</td><td>Commands, inline keyboards, callback queries, push alert loop</td><td><code>telegram_bot/</code></td><td><span class="pill p-built">built</span></td></tr>
+      <tr><td>Bot data service</td><td>TTL-cached Delta/align/signal/backtest access shared by all handlers</td><td><code>telegram_bot/data_service.py</code></td><td><span class="pill p-built">built</span></td></tr>
+      <tr><td>Price monitor</td><td>Extended-hours quote stream → % move / z-score → <code>stock-price-alerts</code></td><td><code>ingestion/price_monitor.py</code></td><td><span class="pill p-todo">to build</span></td></tr>
+      <tr><td>Macro monitor</td><td>Release-calendar poll → actual-vs-consensus → <code>macro-events</code></td><td><code>ingestion/macro_monitor.py</code></td><td><span class="pill p-todo">to build</span></td></tr>
+      <tr><td>LLM explainer</td><td>Retrieve headlines/release → grounded, cited explanation, or refuse</td><td><code>explain/</code></td><td><span class="pill p-todo">to build</span></td></tr>
+      <tr><td>Alert dispatcher</td><td>Consume alert topics → look up subscribers → send with explanation</td><td><code>telegram_bot/dispatcher.py</code></td><td><span class="pill p-todo">to build</span></td></tr>
+      <tr><td>Dashboard</td><td>Price+sentiment chart, backtest chart, recent-posts table (builder-facing)</td><td><code>dashboard/app.py</code></td><td><span class="pill p-built">built</span></td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="blk">2.3 &nbsp;Request lifecycle — a sentiment micro-batch</h2>
+  <pre class="code"><span class="c"># One 30-second Spark micro-batch, from a forum post to a possible alert</span>
+1.  producer publishes {id, ticker, timestamp, source, text} to <span class="s">stock-raw-sentiment</span>
+2.  Spark readStream pulls the batch; from_json → typed rows; to_timestamp(timestamp)
+3.  process_batch(): dropDuplicates(["id"]).cache(); count()          <span class="c"># idempotent on replay</span>
+4.  write_raw_sentiment(df)         → append to raw_sentiment Delta (audit trail, partition date/ticker)
+5.  score_dataframe_with_spark(df)  → mapInPandas: FinBERT loaded ONCE per partition, batched
+6.  upsert_scored_sentiment(df)     → MERGE into scored_sentiment on id (no dupes ever)
+    <span class="c">────────── streaming job ends here; serving reads Delta on demand ──────────</span>
+7.  bot/dashboard: read scored_sentiment + fetch OHLCV
+8.  aggregate_sentiment(window) → merge_asof backward, exact=False   <span class="c"># point-in-time, no lookahead</span>
+9.  add_rolling_sentiment() → generate_signals(): crossing above ENTRY / below EXIT
+10. run_backtest() vs buy-and-hold                                    <span class="c"># is this signal actually worth it?</span>
+11. subscribed? alert loop sees a fresh crossing on the latest bar → push to chat, de-dup on bar timestamp</pre>
+  <p>Steps 1–6 are the durable, exactly-once path. Everything after is stateless read-and-render, so a crash while
+  serving costs a retry, never a lost message — Kafka + Delta already hold the truth.</p>
+
+  <h2 class="blk">2.4 &nbsp;Data flow notes</h2>
+  <p><b>Raw before scored.</b> Every message is persisted verbatim to <code>raw_sentiment</code> before FinBERT runs.
+  If the model is swapped or a bug is found, the entire corpus can be re-scored from the audit table without touching Kafka.</p>
+  <p><b>Sentiment aggregated at the window's <em>close</em>.</b> <code>aggregate_sentiment</code> shifts each resample
+  bucket to its right edge, so a window's aggregate carries the timestamp at which its data was fully observed — the
+  value later used as the point-in-time cutoff. This is subtle and correct; getting it wrong silently reintroduces lookahead.</p>
+  <p><b>Prices fetched, not streamed, for backtest.</b> Research-grade OHLCV comes from yfinance/Alpaca in batch and
+  is small enough to align in Pandas. Live extended-hours quotes for Feature&nbsp;2 are a separate, streaming concern
+  (§04, §07).</p>
+
+  <h2 class="blk">2.5 &nbsp;Deployment shape</h2>
+  <p>One Docker Compose project. Today: <code>zookeeper</code>, <code>kafka</code>, <code>kafka-producer</code>,
+  <code>ml-inference-spark</code>, <code>telegram-bot</code>. Features 2–3 add <code>price-monitor</code>,
+  <code>macro-monitor</code>, and <code>alert-dispatcher</code> services, plus an optional <code>dashboard</code>.
+  The Spark container carries a CPU/memory reservation because FinBERT inference is the hot path; everything else is light.</p>
+</section>
+
+<!-- ============================== 02 ============================== -->
+<section class="doc-section">
+  <div class="sec-head"><div class="sec-num">02</div><div class="sec-title">Technology Stack</div>
+    <div class="sec-kicker">Brief §3</div></div>
+  <p class="small">Cost key: <span class="pill p-free">free</span> open-source / unmetered &nbsp;·&nbsp;
+    <span class="pill p-tier">free tier</span> free within a quota &nbsp;·&nbsp;
+    <span class="pill p-paid">paid</span> costs money. Every entry: purpose, why, cost, alternatives, limits.</p>
+
+  <h2 class="blk">Streaming &amp; data platform</h2>
+  <div class="grid2">
+    <div class="card"><h4>Apache Kafka <span class="pill p-free">free</span></h4>
+      <div class="kv"><b>Purpose:</b> durable ingestion bus for all inbound text and market/macro events.<br/>
+      <b>Why:</b> replayable, partitioned by ticker (ordering per key), decouples producers from the Spark consumer.
+      <code>confluent-kafka</code> (librdkafka) for producers, Spark's built-in source for consumption.<br/>
+      <b>Alts:</b> Redpanda (Kafka-API, lighter, no ZK), AWS Kinesis (managed, paid), a plain Redis stream (fine at demo scale).<br/>
+      <b>Limits:</b> operationally heavy — ZK/broker/JVM. Single-broker, RF=1 in the compose file: no real durability, fine for dev.</div></div>
+    <div class="card"><h4>PySpark 3.5 · Structured Streaming <span class="pill p-free">free</span></h4>
+      <div class="kv"><b>Purpose:</b> the scoring stream and all batch transforms.<br/>
+      <b>Why:</b> exactly-once micro-batch with checkpointing; <code>mapInPandas</code> lets FinBERT run once per
+      partition instead of once per row — the thing that makes model inference tractable in a stream.<br/>
+      <b>Alts:</b> Flink (true streaming, steeper), Bytewax/Faust (Python-native, smaller ecosystem).<br/>
+      <b>Limits:</b> JVM startup + shuffle overhead; needs a JDK in the image (Dockerfile installs OpenJDK 17).
+      <code>mapInPandas</code> is unsupported on a streaming DF directly — scoring lives inside <code>foreachBatch</code>.</div></div>
+    <div class="card"><h4>Delta Lake 3.1 <span class="pill p-free">free</span></h4>
+      <div class="kv"><b>Purpose:</b> the lakehouse — raw, scored, prices, aligned tables.<br/>
+      <b>Why:</b> ACID <code>MERGE</code> gives idempotent upserts (replay-safe), time-travel gives reproducible
+      backtests, partitioning + ZORDER keeps small-file bloat down under frequent micro-batch appends.<br/>
+      <b>Alts:</b> Apache Iceberg, Hudi (comparable), plain Parquet (no ACID, no upsert), Postgres/TimescaleDB (great for
+      serving, weaker for a replayable audit lake).<br/>
+      <b>Limits:</b> small-file problem from streaming appends — <code>optimize_table()</code> exists for exactly this.</div></div>
+    <div class="card"><h4>Ray 2.31 <span class="pill p-free">free</span></h4>
+      <div class="kv"><b>Purpose:</b> the ad-hoc/batch FinBERT inference path (<code>RayInferencePool</code>), each actor holding one loaded model.<br/>
+      <b>Why:</b> clean actor model for a pool of GPU/CPU inference workers outside Spark (e.g. backfills, notebooks).<br/>
+      <b>Alts:</b> a multiprocessing pool, Spark alone (already used for the stream), a dedicated Triton/TorchServe endpoint.<br/>
+      <b>Limits:</b> two inference paths (Ray + Spark UDF) is a small redundancy — the Spark path is the production one; keep Ray for batch.</div></div>
+  </div>
+
+  <h2 class="blk">Machine learning</h2>
+  <div class="grid2">
+    <div class="card"><h4>FinBERT · <code>transformers</code> · <code>torch</code> <span class="pill p-free">free</span></h4>
+      <div class="kv"><b>Purpose:</b> the &ldquo;own ML pipeline&rdquo; — financial-tone sentiment on every post.<br/>
+      <b>Why:</b> <code>yiyanghkust/finbert-tone</code> is fine-tuned on financial text; net score = P(pos) − P(neg) ∈ [−1,1].
+      Domain-specific and cheap per inference, unlike an LLM call per message.<br/>
+      <b>Alts:</b> <code>ProsusAI/finbert</code>, a distilled/ONNX-quantised head for speed, a fine-tuned DistilBERT of your own.<br/>
+      <b>Limits:</b> 128-token cap (long posts truncated); tuned for headlines/news register, weaker on heavy slang/emoji
+      (a real WSB gap, §16); CPU inference is the throughput ceiling — batch aggressively.</div></div>
+    <div class="card"><h4>Hosted LLM — Anthropic Claude API <span class="pill p-tier">free tier / paid</span></h4>
+      <div class="kv"><b>Purpose:</b> the <em>explanation</em> layer only — turn retrieved headlines / a macro release into a
+      short, cited, plain-English &ldquo;why&rdquo;.<br/>
+      <b>Why:</b> strong at grounded summarisation and at refusing when sources are thin; a Haiku-class tier is cheap
+      enough for low-volume event explanations, a Sonnet-class tier handles the harder macro reasoning.<br/>
+      <b>Alts:</b> Gemini Flash (generous free tier), GPT-4o-mini, a local Llama/Qwen-Instruct (free, heavier to host).
+      Kept behind an <code>LLMProvider</code> interface so the choice is one config flip.<br/>
+      <b>Limits:</b> paid per token beyond any free allowance; must be rate-limited and cached; never in the hot
+      per-post path — events only. Prompts must carry no user PII.</div></div>
+  </div>
+
+  <h2 class="blk">Market, news &amp; macro data</h2>
+  <table class="tight">
+    <thead><tr><th>Library / API</th><th>Purpose</th><th>Cost</th><th>Limits worth knowing</th></tr></thead>
+    <tbody>
+      <tr><td><code>yfinance</code></td><td>Research OHLCV, default provider for alignment/backtest</td><td><span class="pill p-free">free</span></td><td>Unofficial, rate-limited, occasional gaps; <code>prepost=True</code> extended-hours data is unreliable for real-time alerting.</td></tr>
+      <tr><td><code>alpaca-py</code></td><td>Cleaner intraday bars; <b>real-time extended-hours quotes</b> for Feature 2</td><td><span class="pill p-tier">free tier</span></td><td>Free with a paper account; IEX feed on free tier (not full SIP). Websocket for live pre/post-market. Keys already in <code>.env.example</code>.</td></tr>
+      <tr><td>Finnhub</td><td>Per-symbol <b>company news</b> (the &ldquo;why&rdquo; source) + economic calendar</td><td><span class="pill p-tier">free tier</span></td><td>~60 req/min free; company-news endpoint is the primary retrieval source for the price-move explainer.</td></tr>
+      <tr><td>FRED (St. Louis Fed)</td><td>Official macro series: Fed funds, CPI, PCE, unemployment</td><td><span class="pill p-free">free</span></td><td>Free API key; release calendar via FRED/ALFRED. The authoritative macro source.</td></tr>
+      <tr><td>BLS / BEA</td><td>CPI, employment (BLS); GDP, PCE (BEA)</td><td><span class="pill p-free">free</span></td><td>Free keys; useful for consensus-vs-actual context on the big prints.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="blk">Interface, quant &amp; ops</h2>
+  <div class="grid3">
+    <div class="card"><h4>python-telegram-bot 21 <span class="pill p-free">free</span></h4>
+      <div class="kv"><b>Why:</b> mature async bot framework; built-in <code>JobQueue</code> powers the alert poll loop; inline keyboards for ticker/window pickers.<br/>
+      <b>Limits:</b> polling mode today (simple); a webhook + FastAPI is the scale path. Telegram rate limit ≈30 msg/s global, ~1 msg/s per chat — matters for broadcast fan-out (§07).</div></div>
+    <div class="card"><h4>vectorbt <span class="pill p-free">free</span></h4>
+      <div class="kv"><b>Why:</b> vectorised backtests; <code>Portfolio.from_signals</code> vs <code>from_holding</code> gives strategy-vs-benchmark in a few lines.<br/>
+      <b>Limits:</b> in-memory; fine for a handful of tickers. Sharpe/return are sensitive to bar frequency — always pass an explicit <code>freq</code>.</div></div>
+    <div class="card"><h4>Streamlit · Plotly · kaleido <span class="pill p-free">free</span></h4>
+      <div class="kv"><b>Why:</b> builder-facing dashboard; <code>kaleido</code> rasterises Plotly figures to PNG so the bot can send the same charts as photos.<br/>
+      <b>Limits:</b> kaleido needs a headless-Chromium-ish renderer in the image; charts are static in chat (Telegram has no interactive plots).</div></div>
+    <div class="card"><h4>Docker Compose <span class="pill p-free">free</span></h4>
+      <div class="kv"><b>Why:</b> one file brings up ZK, Kafka, producer, Spark scorer, bot. Healthchecks gate start order.<br/>
+      <b>Limits:</b> single host; not an orchestrator. K8s is the scale-out story, deferred (§14).</div></div>
+    <div class="card"><h4><code>python-dotenv</code> + <code>config/settings.py</code> <span class="pill p-free">free</span></h4>
+      <div class="kv"><b>Why:</b> one settings module, every value overridable by env var, so identical code runs on a laptop or in compose.<br/>
+      <b>Limits:</b> no typed validation yet — a <code>pydantic-settings</code> pass is a cheap hardening win (§10).</div></div>
+    <div class="card"><h4>pandas · numpy · scipy · pyarrow <span class="pill p-free">free</span></h4>
+      <div class="kv"><b>Why:</b> the alignment/signal/backtest math and Arrow interchange between Spark and Pandas.<br/>
+      <b>Limits:</b> Pandas alignment assumes the research set fits in memory — true for a small universe, revisit for hundreds of tickers.</div></div>
+  </div>
+
+  <h2 class="blk">Deliberately not used (yet)</h2>
+  <table class="tight">
+    <thead><tr><th>Not used</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>A vector DB</td><td>Retrieval for the explainer is a per-ticker recent-headlines fetch, not semantic search over a corpus. Add one only if a knowledge base appears (§14).</td></tr>
+      <tr><td>A relational DB for bot state</td><td>A locked JSON file covers a few hundred chats. Postgres/Redis is the documented upgrade the moment fan-out or multi-instance is real.</td></tr>
+      <tr><td>Airflow / Dagster</td><td>Spark Structured Streaming + the bot's <code>JobQueue</code> cover scheduling. An orchestrator is warranted once backfills and retrains multiply.</td></tr>
+      <tr><td>A custom sentiment model trained from scratch</td><td>FinBERT is a strong, free starting point. Fine-tuning on labelled cashtag data is a §14 improvement, not a day-one requirement.</td></tr>
+      <tr><td>Kubernetes</td><td>Compose is enough for one host. Named as the scale-out path, not built.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================== 03 ============================== -->
+<section class="doc-section">
+  <div class="sec-head"><div class="sec-num">03</div><div class="sec-title">Telegram Bot Channel</div>
+    <div class="sec-kicker">Brief §2 · interface</div></div>
+  <p class="lead">The bot is the entire product surface. It does two things a passive dashboard cannot: it takes
+  commands, and it <em>pushes</em> — the moment a signal fires, a price gaps, or a macro number prints.</p>
+
+  <h2 class="blk">3.1 &nbsp;Setup</h2>
+  <ol>
+    <li>Create the bot with <b>@BotFather</b>, obtain the token, set <code>TELEGRAM_BOT_TOKEN</code> (see <code>.env.example</code>). The compose file refuses to start <code>telegram-bot</code> without it.</li>
+    <li>Register the command list with BotFather (<code>/setcommands</code>) so Telegram shows the menu.</li>
+    <li>Run <code>python -m telegram_bot.bot</code> — <code>build_application()</code> wires handlers and starts <b>long-polling</b> (<code>run_polling(allowed_updates=["message","callback_query"])</code>).</li>
+  </ol>
+  <div class="callout note"><span class="ct">Polling vs webhook</span>
+    Polling needs no public URL and is perfect for a demo. The scale path is a Telegram <b>webhook</b> into a small
+    FastAPI endpoint (validate the secret token, enqueue, return 200 fast) — the same write-then-process shape used
+    everywhere else. Called out in §14; not needed to ship.</div>
+
+  <h2 class="blk">3.2 &nbsp;Command surface (as built)</h2>
+  <table class="tight">
+    <thead><tr><th>Command</th><th>Does</th><th>Handler</th></tr></thead>
+    <tbody>
+      <tr><td><code>/start</code>, <code>/help</code></td><td>Welcome + command reference (HTML)</td><td><code>start_command</code> / <code>help_command</code></td></tr>
+      <tr><td><code>/ticker [SYM]</code></td><td>Set active ticker; no arg → inline keyboard of the known universe</td><td><code>ticker_command</code></td></tr>
+      <tr><td><code>/window [15m|1h|4h|24h]</code></td><td>Set the rolling-sentiment window; no arg → inline keyboard</td><td><code>window_command</code></td></tr>
+      <tr><td><code>/price</code></td><td>PNG: price vs. net-sentiment dual-axis chart for the active ticker</td><td><code>price_command</code></td></tr>
+      <tr><td><code>/backtest</code></td><td>PNG + stats: sentiment strategy vs. buy-and-hold (return, Sharpe, drawdown)</td><td><code>backtest_command</code></td></tr>
+      <tr><td><code>/posts</code></td><td>Recent FinBERT-scored posts, colour-emoji by score</td><td><code>posts_command</code></td></tr>
+      <tr><td><code>/subscribe</code>, <code>/unsubscribe</code></td><td>Toggle push alerts on entry/exit crossings for the active ticker</td><td><code>subscribe_command</code> / <code>unsubscribe_command</code></td></tr>
+      <tr><td><code>/status</code></td><td>Show this chat's ticker, window, alert state</td><td><code>status_command</code></td></tr>
+      <tr><td><code>/refresh</code></td><td>Clear the data-service cache; next command re-reads Delta / yfinance</td><td><code>refresh_command</code></td></tr>
+      <tr><td>inline buttons</td><td>Ticker/window taps → update state, re-render chart</td><td><code>callback_query_handler</code></td></tr>
+    </tbody>
+  </table>
+  <p class="small">Commands added for Features 2–3 (§07): <code>/watch SYM</code> and <code>/unwatch SYM</code> (per-ticker
+  price-move subscriptions), <code>/macro on|off</code> (macro broadcast opt-in), and <code>/why</code> (explain the
+  active ticker's latest move on demand).</p>
+
+  <h2 class="blk">3.3 &nbsp;Per-chat state</h2>
+  <p><code>telegram_bot/state.py</code> holds a <code>ChatState</code> per chat — <code>ticker</code>, <code>window</code>,
+  <code>subscribed</code>, and a <code>last_alert</code> map (<code>ticker → last-alerted bar timestamp</code>) that
+  guarantees a given crossing is never announced twice. Persisted to a lock-guarded JSON file so preferences survive
+  restarts with no database service. <code>subscribed_chat_ids()</code> is the fan-out list the alert loop iterates.</p>
+  <p>Feature 2/3 extend this with <code>watched_tickers: set[str]</code> and <code>macro_opt_in: bool</code>, plus a
+  per-event de-dup key so a re-polled release or a re-observed gap fires once.</p>
+
+  <h2 class="blk">3.4 &nbsp;Inbound → response flow</h2>
+  <div class="diagram">
+    <pre class="mermaid">
+flowchart LR
+    A["/command or button"] --> B{"handler"}
+    B -->|"pref change"| C["store.update() → state"]
+    B -->|"chart/data"| D["data_service (TTL cache)"]
+    D --> E{"cache hit?"}
+    E -->|yes| F["cached frame"]
+    E -->|no| G["Spark read Delta + yfinance → align → signals"]
+    G --> F
+    F --> H["Plotly → kaleido PNG"]
+    H --> I["bot.send_photo"]
+    C --> J["bot.send_message"]
+    </pre>
+    <div class="fig-cap">Fig 2 — A TTL cache (<code>data_service._TTLCache</code>) stops a burst of commands from re-triggering a Spark read or a yfinance call per keystroke.</div>
+  </div>
+
+  <h2 class="blk">3.5 &nbsp;Push alerts</h2>
+  <p>The one thing a dashboard can't do. <code>telegram_bot/alerts.py::check_and_send_alerts</code> runs on the
+  <code>JobQueue</code> every <code>TELEGRAM_ALERT_POLL_SECONDS</code> (default 60s). For each subscribed chat it loads
+  the latest bar for that chat's ticker/window; if it's a fresh entry or exit crossing (not equal to
+  <code>last_alert[ticker]</code>), it pushes a message and records the bar timestamp. One chat's failure is caught
+  and logged so it can't kill the loop for everyone.</p>
+  <p>Feature 2/3 alerts arrive differently — pushed by the <b>dispatcher</b> off Kafka topics rather than polled off
+  Delta — but converge on the same <code>send_message</code> and the same per-event de-dup discipline (§07, §09).</p>
+
+  <h2 class="blk">3.6 &nbsp;Message formatting rules</h2>
+  <ul>
+    <li><b>HTML parse mode</b>, and every user/source string is <code>html.escape()</code>-d (see <code>posts_command</code>) — a post body containing <code>&lt;</code> must never break the message or inject markup.</li>
+    <li>Charts go as <b>photos</b> (PNG via kaleido), captioned; stats ride in the caption with <code>parse_mode="HTML"</code>.</li>
+    <li>Tickers rendered as <code>$SYM</code>; sentiment as 🟢/🟡/🔴 by the same ±0.2 thresholds the dashboard uses, so the two surfaces read identically.</li>
+    <li>Every alert names the <b>bar timestamp</b> it fired on — an alert without a &ldquo;when&rdquo; is useless in markets.</li>
+  </ul>
+
+  <h2 class="blk">3.7 &nbsp;Local development</h2>
+  <p>No phone needed for most work: unit-test handlers against a fake <code>Update</code>/<code>Context</code>, and
+  drive the data path directly through <code>data_service</code>. For live testing, one real bot token and a DM to
+  the bot exercises the whole loop; <code>docker compose up</code> brings up the producer + Spark scorer so real
+  scored data exists to chart.</p>
+</section>
+
+<!-- ============================== 04 ============================== -->
+<section class="doc-section">
+  <div class="sec-head"><div class="sec-num">04</div><div class="sec-title">Data Sources &amp; Ingestion</div>
+    <div class="sec-kicker">Brief §3 · feeds</div></div>
+  <p class="lead">Four feed families. Social/news ingestion is now <b>real</b> (no synthetic generator); the remaining
+  work is the two market-event monitors and wiring the keyed sources.</p>
+
+  <h2 class="blk">4.1 &nbsp;Social &amp; news (Feature 1 input)</h2>
+  <p><code>ingestion/kafka_producer.py</code> pulls from <b>real sources only</b>, via the <code>ingestion/sources/</code>
+  package: keyless <b>RSS</b> (Google News per ticker — the default, no credentials), plus <b>Reddit</b> (PRAW) and
+  <b>Finnhub</b> company news when their keys are set (<code>INGEST_SOURCES</code> selects which are active). Every source
+  emits the same contract everything downstream depends on:</p>
+  <pre class="code">{"id": uuid, "ticker": "NVDA", "timestamp": ISO-8601-UTC, "source": "reddit|news|twitter", "text": "..."}</pre>
+  <p>Each source implements one <code>fetch() → list[Post]</code> method behind the <code>Source</code> interface
+  (<code>ingestion/sources/base.py</code>); adding a source changes no downstream line:</p>
+  <table class="tight">
+    <thead><tr><th>Source</th><th>Client</th><th>Approach</th><th>Cost / limit</th></tr></thead>
+    <tbody>
+      <tr><td>Reddit (r/wallstreetbets, r/stocks, r/investing)</td><td><code>PRAW</code></td><td>Stream new submissions/comments; extract <code>$CASHTAG</code>s and known tickers; publish one message per (post × ticker).</td><td><span class="pill p-free">free</span> OAuth app; ~60 req/min.</td></tr>
+      <tr><td>X / Twitter</td><td>X API v2 (filtered stream / recent search)</td><td>Rule per cashtag; publish matching tweets. Honest caveat: the usable X tier is now paid and metered.</td><td><span class="pill p-paid">paid</span> — the real budget line for social; Reddit alone is a viable v1.</td></tr>
+      <tr><td>News wires</td><td>Finnhub company-news / RSS</td><td>Poll per-ticker headlines; publish title+summary. Doubles as the retrieval source for Feature 2.</td><td><span class="pill p-tier">free tier</span>.</td></tr>
+    </tbody>
+  </table>
+  <p><b>Ticker extraction</b> is the one bit of real NLP at ingestion: a cashtag regex (<code>\$[A-Z]{1,5}</code>) plus
+  an allow-list from <code>settings.TICKERS</code>, guarding against false positives like <code>$1</code> or common
+  words. A post mentioning two tickers becomes two messages (Kafka key = ticker, preserving per-ticker order).</p>
+
+  <h2 class="blk">4.2 &nbsp;Market data (Features 1 &amp; 2)</h2>
+  <p><code>data_pipeline/data_alignment.py::fetch_market_data</code> already abstracts provider choice
+  (<code>yfinance</code> default, <code>alpaca</code> opt-in) behind one long-format OHLCV frame. Two distinct needs:</p>
+  <ul>
+    <li><b>Research bars</b> (backtest/align): batch pull, 60d × 15m, either provider. Built.</li>
+    <li><b>Live extended-hours quotes</b> (Feature 2 alerting): Alpaca's real-time websocket, subscribed to watched
+      tickers, delivering pre-market (04:00–09:30 ET) and post-market (16:00–20:00 ET) trades/quotes. New —
+      <code>ingestion/price_monitor.py</code>.</li>
+  </ul>
+
+  <h2 class="blk">4.3 &nbsp;Macro (Feature 3)</h2>
+  <p>Two parts: <b>when</b> a release drops, and <b>what</b> it said.</p>
+  <table class="tight">
+    <thead><tr><th>Need</th><th>Source</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Release calendar (when to look)</td><td>FRED release calendar / Finnhub economic calendar</td><td>Poll a few times an hour; know that CPI, FOMC, NFP, PCE, GDP are due, with expected timestamps.</td></tr>
+      <tr><td>Actual value</td><td>FRED series (authoritative), BLS/BEA</td><td>Fetch the just-released observation for the series (e.g. <code>CPIAUCSL</code>, <code>FEDFUNDS</code>, <code>UNRATE</code>).</td></tr>
+      <tr><td>Consensus / prior</td><td>Economic-calendar consensus fields; prior from FRED history</td><td>&ldquo;Actual vs. expected vs. prior&rdquo; is the whole story a macro alert needs to carry.</td></tr>
+    </tbody>
+  </table>
+  <p>Macro is <b>market-wide</b>, not per-ticker: a single event fans out to every <code>macro_opt_in</code> chat, so
+  the monitor publishes one <code>macro-events</code> record per release, not per subscriber.</p>
+
+  <h2 class="blk">4.4 &nbsp;Ingestion guarantees</h2>
+  <ul>
+    <li><b>Idempotency by construction.</b> Every message carries a stable <code>id</code>; Spark
+      <code>dropDuplicates(["id"])</code> and Delta <code>MERGE</code> mean a replayed Kafka partition never
+      double-counts. Price/macro events carry a natural key (<code>ticker+bar</code>, <code>series+release_time</code>)
+      for the same reason.</li>
+    <li><b>Validation at the edge.</b> <code>validate_raw_sentiment</code> checks required fields before anything trusts a payload.</li>
+    <li><b>Back-pressure is free.</b> If Spark falls behind, Kafka retains; nothing is dropped, throughput just lags —
+      the correct failure mode for bursty market opens.</li>
+    <li><b>Tuned producer.</b> <code>acks=all</code>, retries, <code>linger.ms=50</code>, snappy compression
+      (<code>build_producer</code>) — durability over microseconds, right for this data.</li>
+  </ul>
+</section>
+
+<!-- ============================== 05 ============================== -->
+<section class="doc-section">
+  <div class="sec-head"><div class="sec-num">05</div><div class="sec-title">AI / ML Processing Pipelines</div>
+    <div class="sec-kicker">Brief §3 · pipelines</div></div>
+  <p class="lead">Five pipelines, one shape: <b>ingest → transform → model → store → serve</b>. Only one of them
+  (sentiment) runs a model on every record; the two event explainers call an LLM sparingly, on events, grounded in retrieved data.</p>
+
+  <h2 class="blk">5.1 &nbsp;Sentiment scoring (streaming) — built</h2>
+  <p>Kafka → Spark micro-batch → FinBERT (<code>mapInPandas</code>) → Delta. The model loads once per partition, not
+  per row; net score = P(pos) − P(neg). Raw rows are persisted before scoring for a full re-score capability. Detailed in §06.</p>
+  <p><b>Degraded mode:</b> if the model fails to load, the raw table still fills, so nothing is lost and a backfill
+  re-scores once the model is back. The stream is designed so scoring is the only thing that can fail, and it fails safe.</p>
+
+  <h2 class="blk">5.2 &nbsp;Signal &amp; leading-indicator pipeline — built</h2>
+  <p>Aligned sentiment+price → rolling means (<code>add_rolling_sentiment</code>) → crossing signals
+  (<code>generate_signals</code>) → vectorbt backtest. Crossings (not levels) are used so the backtester sees discrete
+  entry/exit events. The &ldquo;leading indicator&rdquo; claim is <em>tested</em> here, not asserted (§06.4, §07.1).</p>
+
+  <h2 class="blk">5.3 &nbsp;Price-move detection &amp; explanation — to build</h2>
+  <div class="diagram">
+    <pre class="mermaid">
+flowchart TD
+    A["Alpaca extended-hours quotes (watched tickers)"] --> B["rolling reference: prior close + return z-score"]
+    B --> C{"|move| &gt; abs threshold OR z &gt; k?"}
+    C -->|no| A
+    C -->|yes, and not already alerted this session| D["emit stock-price-alerts {ticker, pct, dir, session}"]
+    D --> E["fetch top-N Finnhub headlines for ticker"]
+    E --> F["corroborate: FinBERT sentiment shift on those headlines"]
+    F --> G["LLM: explain ONLY from these sources, cite, or refuse"]
+    G --> H["dispatcher → subscribers: move + why + sources + disclaimer"]
+    </pre>
+    <div class="fig-cap">Fig 3 — Detection is deterministic (thresholds/z-score); explanation is retrieval-grounded. If retrieval is empty, the alert still sends the move with an honest &ldquo;no clear catalyst in the news yet.&rdquo;</div>
+  </div>
+  <p><b>Detection</b> is pure arithmetic — a percent move vs. prior close and a z-score of recent returns, both above
+  configurable thresholds — so it never depends on a model being up. <b>Explanation</b> retrieves the actual
+  headlines, optionally corroborates with the sentiment already scored on them, and asks the LLM to explain strictly
+  from those sources with citations. Full execution spec in §17.</p>
+
+  <h2 class="blk">5.4 &nbsp;Macro release detection &amp; explanation — to build</h2>
+  <div class="diagram">
+    <pre class="mermaid">
+flowchart TD
+    A["macro monitor: poll release calendar (FRED/Finnhub)"] --> B{"new release observed?"}
+    B -->|no| A
+    B -->|yes| C["fetch actual (FRED series) + consensus + prior"]
+    C --> D["compute surprise: actual − consensus, vs history"]
+    D --> E["emit macro-events {series, actual, consensus, prior, surprise}"]
+    E --> F["LLM: explain the print &amp; why it matters, from the numbers + 1-2 headlines"]
+    F --> G["dispatcher → macro opt-in chats (broadcast, market-wide)"]
+    </pre>
+    <div class="fig-cap">Fig 4 — Macro is market-wide and low-volume: a handful of scheduled prints a week, each broadcast once, each explained from the numbers plus a couple of grounding headlines.</div>
+  </div>
+
+  <h2 class="blk">5.5 &nbsp;On-demand Q&amp;A (<code>/why</code>) — to build</h2>
+  <p>A pull version of 5.3: the user asks &ldquo;why is $TSLA moving?&rdquo; and the same retrieval+explain path runs
+  on demand for the active ticker's most recent notable move, cache-first so repeated asks are instant and identical.</p>
+
+  <h2 class="blk">5.6 &nbsp;Cross-cutting rules</h2>
+  <ul>
+    <li><b>One model per record type.</b> FinBERT on every post; the LLM only on events. If an event explainer is making
+      more than one LLM call per event, it's wrong (retrieval + one grounded generation).</li>
+    <li><b>Everything grounded or refused.</b> No explainer emits a &ldquo;why&rdquo; it can't tie to a retrieved source.</li>
+    <li><b>Idempotent &amp; de-duplicated.</b> Every pipeline keys on a stable id / natural key; a replay or re-poll produces no second alert.</li>
+    <li><b>Logged, never leaking.</b> Pipeline name, latency, model, token counts, outcome — not full post bodies or PII (§10).</li>
+  </ul>
+</section>
+
+<!-- ============================== 06 ============================== -->
+<section class="doc-section">
+  <div class="sec-head"><div class="sec-num">06</div><div class="sec-title">NLP &amp; the FinBERT Sentiment Engine</div>
+    <div class="sec-kicker">Brief §3 · the ML pipeline</div></div>
+  <p class="lead">This is the &ldquo;own ML pipeline&rdquo; the brief asks for: a real, domain-specific NLP model wired
+  into a streaming system — not an LLM prompt wearing a lab coat.</p>
+
+  <h2 class="blk">6.1 &nbsp;The model</h2>
+  <p><code>ml_engine/finbert_model.py</code> wraps <code>yiyanghkust/finbert-tone</code> (labels: neutral / positive /
+  negative). <code>predict_batch</code> tokenises with padding+truncation at 128 tokens, runs a single forward pass
+  under <code>torch.inference_mode()</code>, softmaxes the logits, and returns a <code>SentimentResult</code> whose
+  <code>sentiment_score</code> property is <b>P(positive) − P(negative) ∈ [−1, 1]</b>. A process-local singleton
+  (<code>get_shared_model</code>) ensures weights load once per worker, since loading — not inference — is the expensive part.</p>
+
+  <h2 class="blk">6.2 &nbsp;Distributed inference</h2>
+  <p>Two paths, one model wrapper:</p>
+  <table class="tight">
+    <thead><tr><th>Path</th><th>Where</th><th>Use</th></tr></thead>
+    <tbody>
+      <tr><td><code>score_dataframe_with_spark</code> (<code>mapInPandas</code>)</td><td>Inside the streaming <code>foreachBatch</code></td><td><b>Production.</b> One model per partition; batched; the scalable hot path.</td></tr>
+      <tr><td><code>RayInferencePool</code> (actor pool)</td><td>Standalone/batch/notebook</td><td>Backfills and ad-hoc scoring; N actors, round-robin batches; each actor holds one loaded model.</td></tr>
+    </tbody>
+  </table>
+  <p>Both funnel through <code>predict_batch</code>, so behaviour is identical and there is exactly one place where
+  inference semantics live.</p>
+
+  <h2 class="blk">6.3 &nbsp;From scores to a leading indicator</h2>
+  <p>Raw per-post scores are noisy. The pipeline that turns them into signal:</p>
+  <pre class="code">scored_sentiment            <span class="c"># per-post P(pos)-P(neg)</span>
+  → aggregate_sentiment(window="15min")     <span class="c"># mean score + post_count per (ticker, window), stamped at window CLOSE</span>
+  → merge_asof(price, direction="backward", allow_exact_matches=False)   <span class="c"># point-in-time join</span>
+  → add_rolling_sentiment({"15m","1h","4h","24h"})    <span class="c"># rolling means, still lookahead-safe</span>
+  → generate_signals(entry=+0.4, exit=-0.2)           <span class="c"># CROSSINGS above/below thresholds</span></pre>
+  <p><b>Why crossings, not levels:</b> a level signal (&ldquo;sentiment is above 0.4&rdquo;) stays true for many bars
+  and produces one giant position; a crossing (&ldquo;rose <em>through</em> 0.4 this bar&rdquo;) is a discrete event
+  the backtester can enter and exit on. <code>generate_signals</code> uses <code>sentiment &gt; t &amp;
+  prev_sentiment &lt;= t</code>.</p>
+
+  <h2 class="blk">6.4 &nbsp;Proving it leads — the honest part</h2>
+  <p>The claim &ldquo;sentiment is a leading indicator&rdquo; is only worth making if it survives a backtest that
+  cannot cheat. Two guards make the vectorbt result (<code>quant_backtest/backtester.py</code>) trustworthy:</p>
+  <ol>
+    <li><b>No lookahead:</b> <code>allow_exact_matches=False</code> means a price bar at <code>t</code> sees only
+      sentiment aggregated strictly before <code>t</code>. Rolling features inherit this — a window ending at
+      <code>t</code> uses only rows ≤ <code>t</code>.</li>
+    <li><b>Benchmarked:</b> every strategy is run against <code>Portfolio.from_holding</code> (buy-and-hold). The bot
+      reports <b>total return, Sharpe, max drawdown, and the delta vs. buy-and-hold</b> — if the &ldquo;signal&rdquo;
+      doesn't beat holding, that shows.</li>
+  </ol>
+  <div class="callout warn"><span class="ct">Threshold enhancement (planned)</span>
+    The brief asks for an alert when sentiment moves &ldquo;beyond a certain threshold&rdquo;. The current fixed
+    ±0.4/−0.2 crossing is a good v1. The stronger leading-indicator form is a <b>rolling z-score</b>: alert when a
+    ticker's short-window sentiment is <em>k</em> standard deviations above its own recent baseline (and volume of
+    posts is non-trivial). This adapts per ticker, catches <em>changes</em> rather than absolute levels, and is a
+    small addition to <code>signal_generator.py</code> (milestone A4, §13).</div>
+
+  <h2 class="blk">6.5 &nbsp;Preprocessing &amp; known NLP limits</h2>
+  <ul>
+    <li><b>Truncation at 128 tokens</b> — long DD posts lose their tail. Acceptable for headline-register news; a
+      chunk-and-average pass is a future refinement for long-form.</li>
+    <li><b>Register mismatch</b> — FinBERT is trained on financial news/filings, so dense WSB slang, sarcasm, and
+      emoji-as-sentiment are its weak spot. Named plainly in §16; the mitigation is aggregation (one sarcastic post
+      barely moves a windowed mean) and, later, fine-tuning on labelled cashtag data.</li>
+    <li><b>Neutral inflation</b> — low-content posts skew neutral, which is correct behaviour, not a bug; the
+      <code>post_count</code> field lets the signal layer ignore thin windows.</li>
+    <li><b>Language</b> — English only for v1. Non-English posts should be filtered at ingestion rather than mis-scored.</li>
+  </ul>
+</section>
+
+<!-- ============================== 07 ============================== -->
+<section class="doc-section">
+  <div class="sec-head"><div class="sec-num">07</div><div class="sec-title">Feature-by-Feature Implementation</div>
+    <div class="sec-kicker">Brief §2 · the three features</div></div>
+  <p class="lead">Each feature: what it is, what it depends on, the data it reads/writes, its error and edge cases, and
+  the guardrail that keeps it honest.</p>
+
+  <h2 class="blk">7.1 &nbsp;Feature 1 — Social/news sentiment leading indicator <span class="pill p-part">mostly built</span></h2>
+  <div class="grid2">
+    <div class="card"><h4>What it does</h4><div class="kv">Continuously scores forum/news posts with FinBERT, aggregates
+      per ticker/window, and pings a subscriber the moment rolling sentiment <em>crosses</em> the entry/exit threshold —
+      designed to move before the clean price move does, and validated by a buy-and-hold-benchmarked backtest.</div></div>
+    <div class="card"><h4>Depends on</h4><div class="kv">Kafka + Spark + Delta + FinBERT (built). Real Reddit/X/RSS
+      clients (to wire). Optional z-score threshold (to add).</div></div>
+  </div>
+  <table class="tight">
+    <thead><tr><th>Aspect</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td>Reads/writes</td><td>Reads <code>scored_sentiment</code> + OHLCV; writes nothing user-facing except the alert. Backtest computed on demand, TTL-cached.</td></tr>
+      <tr><td>Subscription</td><td><code>/subscribe</code> sets <code>ChatState.subscribed</code>; the <code>JobQueue</code> loop checks the latest bar per subscriber.</td></tr>
+      <tr><td>De-dup</td><td><code>last_alert[ticker]</code> = bar timestamp; a crossing is announced once.</td></tr>
+      <tr><td>Errors</td><td>Empty/late data → loop skips silently; one chat's exception is caught so the loop survives; unknown ticker rejected at <code>/ticker</code>.</td></tr>
+      <tr><td>Guardrail</td><td>The alert states the signal and the bar time; it never says &ldquo;buy&rdquo;. The <code>/backtest</code> stats are shown honestly, including underperformance.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="blk">7.2 &nbsp;Feature 2 — Pre/post-market price-move alerts &amp; the &ldquo;why&rdquo; <span class="pill p-todo">to build</span></h2>
+  <p>User subscribes to a ticker (<code>/watch NVDA</code>); the price monitor watches extended-hours quotes; a
+  significant gap fires an alert whose body answers <em>why</em>, grounded in the headlines that broke.</p>
+  <table class="tight">
+    <thead><tr><th>Aspect</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td>APIs</td><td>Alpaca real-time (extended-hours quotes) · Finnhub company-news (retrieval) · LLM (explanation) · Telegram (push).</td></tr>
+      <tr><td>New modules</td><td><code>ingestion/price_monitor.py</code>, <code>explain/news_retrieval.py</code>, <code>explain/llm_provider.py</code>, <code>telegram_bot/dispatcher.py</code>.</td></tr>
+      <tr><td>Detection</td><td>% move vs. prior close AND/OR return z-score over recent bars; both thresholds in <code>settings</code>; session-aware (pre 04:00–09:30 ET, post 16:00–20:00 ET).</td></tr>
+      <tr><td>Explanation</td><td>Retrieve top-N recent headlines → LLM explains strictly from them, cites, or says &ldquo;no clear catalyst yet&rdquo; (§17).</td></tr>
+      <tr><td>Reads/writes</td><td>Writes <code>stock-price-alerts</code> Kafka + an optional <code>price_alerts</code> Delta audit table; reads news at explain time.</td></tr>
+      <tr><td>Subscription</td><td><code>watched_tickers</code> per chat; dispatcher fans out only to watchers of that ticker.</td></tr>
+      <tr><td>De-dup</td><td>One alert per (ticker, session, direction) unless the move materially extends; a re-observed quote never re-fires.</td></tr>
+      <tr><td>Errors</td><td>News empty → send the move with an honest no-catalyst note. LLM down → send move + raw top headline, no synthesis. Feed gap → don't invent a move from a stale quote.</td></tr>
+      <tr><td>Guardrail</td><td>GUARD-1: explanation is retrieval-grounded and cited, never speculative; every alert carries the not-advice disclaimer (§16).</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="blk">7.3 &nbsp;Feature 3 — US macroeconomic release alerts &amp; the &ldquo;why&rdquo; <span class="pill p-todo">to build</span></h2>
+  <p>When the Fed / BLS / BEA releases a key number, every opted-in chat gets one message: what printed, vs. consensus
+  and prior, and why it matters — explained from the numbers plus a wire headline or two.</p>
+  <table class="tight">
+    <thead><tr><th>Aspect</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td>APIs</td><td>FRED (series + release calendar) · Finnhub economic calendar (consensus) · BLS/BEA (context) · LLM · Telegram.</td></tr>
+      <tr><td>New modules</td><td><code>ingestion/macro_monitor.py</code>, reuses <code>explain/</code> and <code>dispatcher.py</code>.</td></tr>
+      <tr><td>Detection</td><td>Poll the calendar; when a scheduled series posts a new observation, compute surprise = actual − consensus, scaled by the series' historical surprise dispersion.</td></tr>
+      <tr><td>Coverage (v1)</td><td>FOMC rate decision, CPI, PCE, Non-farm Payrolls, Unemployment, GDP. A small, curated, high-impact set.</td></tr>
+      <tr><td>Reads/writes</td><td>Writes <code>macro-events</code> Kafka; broadcast (market-wide), not per-ticker.</td></tr>
+      <tr><td>Subscription</td><td><code>/macro on|off</code> → <code>macro_opt_in</code>.</td></tr>
+      <tr><td>De-dup</td><td>Key on (series, release_time); a revised figure is a distinct, clearly-labelled &ldquo;revision&rdquo; alert, not a duplicate.</td></tr>
+      <tr><td>Errors</td><td>Consensus missing → report actual vs. prior only. Number not yet posted at scheduled time → keep polling, don't announce a blank.</td></tr>
+      <tr><td>Guardrail</td><td>Explains, never forecasts Fed policy or tells anyone to trade the print. Numbers quoted are the retrieved figures, verbatim.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="blk">7.4 &nbsp;Shared subscription model</h2>
+  <p>All three features share <code>ChatState</code> and one fan-out discipline: look up interested chats, respect a
+  per-event de-dup key, and send through one code path so throttling and formatting are uniform. Feature 1 is
+  <em>polled</em> off Delta (signal lives in a table); Features 2–3 are <em>pushed</em> off Kafka (events arrive as
+  they happen). The user experiences all three as &ldquo;the bot messaged me with something that matters, and told me why.&rdquo;</p>
+</section>
+
+<!-- ============================== 08 ============================== -->
+<section class="doc-section">
+  <div class="sec-head"><div class="sec-num">08</div><div class="sec-title">Data Layer: Kafka Topics &amp; Delta Tables</div>
+    <div class="sec-kicker">Brief §3 · storage</div></div>
+
+  <h2 class="blk">8.1 &nbsp;Kafka topics</h2>
+  <table class="tight">
+    <thead><tr><th>Topic</th><th>Key</th><th>Value schema</th><th>Producer → Consumer</th></tr></thead>
+    <tbody>
+      <tr><td><code>stock-raw-sentiment</code></td><td>ticker</td><td>id, ticker, timestamp, source, text</td><td>social/news producer → Spark scorer <span class="pill p-built">built</span></td></tr>
+      <tr><td><code>stock-scored-sentiment</code></td><td>ticker</td><td>+ positive, neutral, negative, sentiment_score</td><td>(reserved for a Kafka-native scored stream) <span class="pill p-part">reserved</span></td></tr>
+      <tr><td><code>stock-price-alerts</code></td><td>ticker</td><td>ticker, pct_move, direction, session, ref_price, ts</td><td>price monitor → dispatcher <span class="pill p-todo">to build</span></td></tr>
+      <tr><td><code>macro-events</code></td><td>series</td><td>series, actual, consensus, prior, surprise, release_time</td><td>macro monitor → dispatcher <span class="pill p-todo">to build</span></td></tr>
+    </tbody>
+  </table>
+  <p class="small">3 partitions, RF=1 in dev (<code>ensure_topics</code>). Production: RF≥3 and partition count sized to consumer parallelism.</p>
+
+  <h2 class="blk">8.2 &nbsp;Delta Lake tables</h2>
+  <div class="diagram">
+    <pre class="mermaid">
+erDiagram
+    raw_sentiment ||--|| scored_sentiment : "scored by id"
+    scored_sentiment }o--o{ aligned_sentiment_price : "aggregated + joined"
+    market_prices }o--o{ aligned_sentiment_price : "point-in-time join"
+    raw_sentiment {
+      string id PK
+      string ticker
+      timestamp ts
+      string source
+      string text
+      date date "partition"
+    }
+    scored_sentiment {
+      string id PK
+      string ticker
+      double positive
+      double neutral
+      double negative
+      double sentiment_score
+    }
+    market_prices {
+      string ticker PK
+      timestamp ts PK
+      double open
+      double high
+      double low
+      double close
+      long volume
+    }
+    aligned_sentiment_price {
+      string ticker
+      timestamp ts
+      double close
+      double avg_sentiment
+      int post_count
+      bool entry_signal
+      bool exit_signal
+    }
+</pre>
+    <div class="fig-cap">Fig 5 — The lakehouse. <code>raw</code> is the immutable audit trail; <code>scored</code> is the re-computable model output; <code>aligned</code> is the point-in-time research/serving view.</div>
+  </div>
+  <table class="tight">
+    <thead><tr><th>Table</th><th>Key (MERGE)</th><th>Partition</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>raw_sentiment</code></td><td>append-only</td><td>date, ticker</td><td>Verbatim audit trail; source of any re-score.</td></tr>
+      <tr><td><code>scored_sentiment</code></td><td><code>id</code></td><td>date, ticker</td><td>FinBERT output; idempotent upsert.</td></tr>
+      <tr><td><code>market_prices</code></td><td><code>(ticker, timestamp)</code></td><td>date, ticker</td><td>OHLCV bars; idempotent on backfill.</td></tr>
+      <tr><td><code>aligned_sentiment_price</code></td><td>derived</td><td>date, ticker</td><td>Point-in-time sentiment+price+signals for serving.</td></tr>
+      <tr><td><code>price_alerts</code> <span class="pill p-todo">new</span></td><td><code>(ticker, session, ts)</code></td><td>date</td><td>Feature 2 audit: what fired, what was said, which sources.</td></tr>
+      <tr><td><code>macro_events</code> <span class="pill p-todo">new</span></td><td><code>(series, release_time)</code></td><td>date</td><td>Feature 3 audit of every explained release.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="blk">8.3 &nbsp;Bot state (not in Delta)</h2>
+  <p>Per-chat preferences live in a lock-guarded JSON file (<code>telegram_bot/state.py</code>), deliberately outside
+  the lakehouse — they're tiny, mutable, and unrelated to the analytical tables. Fields today: <code>ticker</code>,
+  <code>window</code>, <code>subscribed</code>, <code>last_alert{}</code>; Feature 2/3 add <code>watched_tickers[]</code>,
+  <code>macro_opt_in</code>, and a per-event <code>last_alert</code> namespace.</p>
+
+  <h2 class="blk">8.4 &nbsp;Maintenance</h2>
+  <ul>
+    <li><b>Compaction:</b> <code>optimize_table()</code> (+ optional ZORDER by ticker) counters the small-file churn from 30-second micro-batch appends. Schedule nightly.</li>
+    <li><b>Retention:</b> raw/scored kept for research; a VACUUM policy caps time-travel history. Alert audit tables kept for post-mortems.</li>
+    <li><b>Re-score:</b> swap the model, truncate <code>scored_sentiment</code>, replay from <code>raw_sentiment</code> — Kafka untouched.</li>
+  </ul>
+</section>
+
+<!-- ============================== 09 ============================== -->
+<section class="doc-section">
+  <div class="sec-head"><div class="sec-num">09</div><div class="sec-title">Services, Endpoints &amp; Background Jobs</div>
+    <div class="sec-kicker">Brief §3 · runtime</div></div>
+  <p class="lead">Mostly long-running services and scheduled loops rather than a REST API — the interface is Telegram,
+  so there's little to expose over HTTP beyond health and an optional webhook.</p>
+
+  <h2 class="blk">9.1 &nbsp;Services (Compose)</h2>
+  <table class="tight">
+    <thead><tr><th>Service</th><th>Command</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td><code>zookeeper</code> / <code>kafka</code></td><td>Confluent images</td><td>The bus; healthchecks gate dependents. <span class="pill p-built">built</span></td></tr>
+      <tr><td><code>kafka-producer</code></td><td><code>python -m ingestion.kafka_producer --poll 60</code></td><td>Real RSS/Reddit/Finnhub ingestion. <span class="pill p-built">built</span></td></tr>
+      <tr><td><code>ml-inference-spark</code></td><td><code>python -m data_pipeline.spark_streaming</code></td><td>The scoring stream; CPU/mem reservation. <span class="pill p-built">built</span></td></tr>
+      <tr><td><code>telegram-bot</code></td><td><code>python -m telegram_bot.bot</code></td><td>Commands + polled sentiment alerts. <span class="pill p-built">built</span></td></tr>
+      <tr><td><code>price-monitor</code></td><td><code>python -m ingestion.price_monitor</code></td><td>Extended-hours detection → Kafka. <span class="pill p-todo">to build</span></td></tr>
+      <tr><td><code>macro-monitor</code></td><td><code>python -m ingestion.macro_monitor</code></td><td>Release-calendar poll → Kafka. <span class="pill p-todo">to build</span></td></tr>
+      <tr><td><code>alert-dispatcher</code></td><td><code>python -m telegram_bot.dispatcher</code></td><td>Consume alert topics → explain → fan out. <span class="pill p-todo">to build</span></td></tr>
+      <tr><td><code>dashboard</code> (opt)</td><td><code>streamlit run dashboard/app.py</code></td><td>Builder-facing charts. <span class="pill p-built">built</span></td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="blk">9.2 &nbsp;Background jobs</h2>
+  <table class="tight">
+    <thead><tr><th>Job</th><th>Cadence</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td>Spark micro-batch</td><td>every 30s (<code>trigger(processingTime)</code>)</td><td>Score &amp; land the sentiment stream.</td></tr>
+      <tr><td><code>check_and_send_alerts</code></td><td><code>JobQueue</code>, 60s</td><td>Poll latest bar per subscriber; push fresh crossings.</td></tr>
+      <tr><td>price-monitor loop</td><td>websocket-driven</td><td>Evaluate each quote against thresholds; emit alerts.</td></tr>
+      <tr><td>macro-monitor poll</td><td>every ~15 min (tighter near scheduled release times)</td><td>Detect new releases; emit macro events.</td></tr>
+      <tr><td>Delta OPTIMIZE</td><td>nightly</td><td>Compact small files; ZORDER by ticker.</td></tr>
+      <tr><td>news/quote cache TTL</td><td>per request (<code>_TTLCache</code>)</td><td>Collapse bursts; keep repeated <code>/why</code> instant &amp; consistent.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="blk">9.3 &nbsp;Alert dispatch sequence (Features 2–3)</h2>
+  <div class="diagram">
+    <pre class="mermaid">
+sequenceDiagram
+    participant M as Monitor
+    participant K as Kafka
+    participant D as Dispatcher
+    participant X as Explainer (retrieve+LLM)
+    participant S as State store
+    participant T as Telegram
+    M->>K: publish alert (natural key)
+    D->>K: consume alert
+    D->>S: seen this key before?
+    alt already dispatched
+        S-->>D: yes → drop
+    else fresh
+        D->>X: explain(ticker/series, context)
+        X->>X: retrieve sources
+        X-->>D: grounded text + citations (or "no catalyst")
+        D->>S: subscribers for this ticker / macro opt-ins
+        loop each subscriber (throttled)
+            D->>T: sendMessage(move/print + why + disclaimer)
+        end
+        D->>S: mark key dispatched
+    end
+</pre>
+    <div class="fig-cap">Fig 6 — Explain once per event, then fan out. De-dup is checked before the (costly) LLM call, so a re-consumed message never re-explains.</div>
+  </div>
+
+  <h2 class="blk">9.4 &nbsp;HTTP surface (minimal)</h2>
+  <table class="tight">
+    <thead><tr><th>Endpoint</th><th>Auth</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET /health</code></td><td>none</td><td>Liveness for each service.</td></tr>
+      <tr><td><code>GET /health/deps</code></td><td>admin token</td><td>Probe Kafka, Delta path, FinBERT load, LLM, data APIs — run before a demo.</td></tr>
+      <tr><td><code>POST /telegram/webhook</code></td><td>Telegram secret token</td><td>Scale-path alternative to polling (§03, §14).</td></tr>
+      <tr><td><code>POST /internal/simulate/alert</code></td><td>admin token</td><td>Inject a fake price/macro event to demo the dispatch path without waiting for the market.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================== 10 ============================== -->
+<section class="doc-section">
+  <div class="sec-head"><div class="sec-num">10</div><div class="sec-title">Security, Logging &amp; Error Handling</div>
+    <div class="sec-kicker">Brief §3 · ops</div></div>
+
+  <h2 class="blk">10.1 &nbsp;Security</h2>
+  <ul>
+    <li><b>Secrets via env only.</b> <code>TELEGRAM_BOT_TOKEN</code>, <code>ALPACA_*</code>, FRED/Finnhub keys, the LLM
+      key — all through <code>config/settings.py</code> from the environment; <code>.env</code> is git-ignored,
+      <code>.env.example</code> is committed with empty values. Compose fails loudly if the bot token is missing.</li>
+    <li><b>Least privilege on market APIs.</b> Alpaca <b>paper</b> keys and read-only data scopes; the system has no
+      code path that can place an order. That's a deliberate property, not an omission — it can never trade, by construction.</li>
+    <li><b>Telegram trust.</b> Polling authenticates via the bot token; a webhook deployment adds Telegram's secret-token
+      header check. Callback-query data is validated against known prefixes, never <code>eval</code>'d.</li>
+    <li><b>Input hygiene.</b> Every inbound/source string is <code>html.escape()</code>-d before it enters an HTML
+      message; ticker/window inputs are checked against allow-lists; message-length caps before anything hits the LLM.</li>
+    <li><b>Prompt-injection defence.</b> Retrieved headlines are untrusted text. They go into the LLM inside a clearly
+      delimited block, the system prompt states that block is data (not instructions), and — the real backstop — the
+      output is only ever a short explanation shown to the user, never a tool call or a trade. A successful injection
+      can at worst produce a wrong sentence, which the citation requirement and the disclaimer already bound. See §16.</li>
+    <li><b>PII.</b> There is essentially none — chat IDs and preferences only. Chat IDs are never sent to the LLM or any data API.</li>
+    <li><span class="pill p-part">deferred</span> <b>pydantic-settings</b> typed config validation, secret rotation, per-chat auth for any future admin commands.</li>
+  </ul>
+
+  <h2 class="blk">10.2 &nbsp;Logging</h2>
+  <table class="tight">
+    <thead><tr><th>Level</th><th>Content</th></tr></thead>
+    <tbody>
+      <tr><td>INFO</td><td>Batch sizes &amp; counts (Spark), messages produced, alert sent (chat_id, ticker, bar), LLM call (pipeline, tokens, latency), job start/finish.</td></tr>
+      <tr><td>WARNING</td><td>Kafka topic-create failure, model reload, empty/late data skip, LLM rate-limit backoff, news retrieval empty, provider fallback.</td></tr>
+      <tr><td>ERROR</td><td>Send failure after retries, unhandled pipeline exception, Delta write error, feed disconnect.</td></tr>
+      <tr><td>CRITICAL</td><td>Scoring stream down, dispatcher unable to reach Telegram, a data API returning a price move that fails sanity bounds.</td></tr>
+    </tbody>
+  </table>
+  <p><b>Never logged:</b> full post bodies, LLM prompt/response text verbatim, API keys, the bot token. Log the
+  <em>shape</em> (id, ticker, length, outcome), not the content. A correlation id per event threads a price/macro
+  alert through detect → explain → dispatch.</p>
+
+  <h2 class="blk">10.3 &nbsp;Error handling — universal rules</h2>
+  <ol>
+    <li><b>Every external call has a timeout</b> (Kafka, yfinance/Alpaca, news, FRED, LLM, Telegram). No exceptions.</li>
+    <li><b>Every alert has a fallback.</b> No news → send the move with an honest &ldquo;no clear catalyst yet.&rdquo;
+      No LLM → send the move + the top raw headline. Never a stack trace, never silence on a real event.</li>
+    <li><b>The stream fails safe.</b> Raw is written before scoring; a scoring failure loses no data (re-score later).</li>
+    <li><b>One subscriber's failure never stops the loop</b> (already true in <code>alerts.py</code>).</li>
+  </ol>
+  <table class="tight">
+    <thead><tr><th>Failure</th><th>Handling</th><th>User sees</th></tr></thead>
+    <tbody>
+      <tr><td>Kafka unreachable</td><td>Producer retries (<code>acks=all</code>, retries=5); Spark waits, Kafka retains.</td><td>Slight lag, no loss.</td></tr>
+      <tr><td>FinBERT load fails</td><td>Raw table still fills; alert on CRITICAL; backfill re-scores.</td><td>Sentiment charts stale until recovered.</td></tr>
+      <tr><td>yfinance rate-limit / gap</td><td>Backoff; serve cached bars; Alpaca fallback if configured.</td><td>Cached chart; a refresh retries.</td></tr>
+      <tr><td>News API empty/429</td><td>Skip synthesis; send move with no-catalyst note; back off.</td><td>&ldquo;$NVDA −6% pre-market. No clear catalyst in the news yet.&rdquo;</td></tr>
+      <tr><td>LLM 429 / timeout</td><td>Backoff + jitter; degrade to raw-headline mode; cache prior explanation.</td><td>Move + one real headline, no synthesis.</td></tr>
+      <tr><td>Telegram 429 (flood)</td><td>Respect <code>retry_after</code>; throttle fan-out to ≤~1 msg/s per chat.</td><td>Alerts arrive a beat later, in order.</td></tr>
+      <tr><td>Stale/again quote</td><td>Sanity-bound the move; ignore a quote older than N seconds; never fabricate a gap.</td><td>Nothing — no false alert.</td></tr>
+      <tr><td>Duplicate event (replay/re-poll)</td><td>Natural-key de-dup before explain/send.</td><td>Nothing — no double alert.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================== 11 ============================== -->
+<section class="doc-section">
+  <div class="sec-head"><div class="sec-num">11</div><div class="sec-title">Testing Strategy</div>
+    <div class="sec-kicker">Brief §3 · quality</div></div>
+  <p class="lead">Scoped for delivery: enough tests to stop the demo breaking and to protect the two things that must
+  never be wrong — the point-in-time guarantee and the &ldquo;not advice / grounded explanation&rdquo; guardrails.</p>
+
+  <h2 class="blk">11.1 &nbsp;Priorities (stop at the line if time is short)</h2>
+  <ol>
+    <li><b>Point-in-time alignment</b> — a bar must never see sentiment at or after its own timestamp. The whole backtest depends on it.</li>
+    <li><b>Signal crossing logic</b> — entry/exit fire on a transition, not a level; edge cases at the threshold.</li>
+    <li><b>Explainer grounding</b> — no sources ⇒ refusal / no-catalyst; every claim ties to a retrieved headline.</li>
+    <li><b>Alert de-dup</b> — one crossing / one event ⇒ exactly one message.</li>
+    <li><b>FinBERT scoring contract</b> — score ∈ [−1,1]; positive/negative text lands on the right sign.</li>
+    <li><b>Bot handlers</b> — unknown ticker/window rejected; HTML escaping; state transitions.
+    <span class="small">— cut line —</span></li>
+    <li>Delta upsert idempotency; backtest stats sanity; degraded-mode paths.</li>
+  </ol>
+
+  <h2 class="blk">11.2 &nbsp;Unit tests</h2>
+  <table class="tight">
+    <thead><tr><th>Target</th><th>Cases</th></tr></thead>
+    <tbody>
+      <tr><td><code>align_sentiment_with_price</code></td><td>sentiment strictly before bar (used) · exactly at bar (excluded) · after bar (excluded) · no sentiment (zeros, no crash) · window right-edge stamping.</td></tr>
+      <tr><td><code>generate_signals</code></td><td>cross above entry (fires once) · stays above (no re-fire) · cross below exit · hover at threshold · first bar (NaN prev → False).</td></tr>
+      <tr><td><code>aggregate_sentiment</code></td><td>bucket-close timestamp · empty windows dropped · post_count &gt; 0 filter.</td></tr>
+      <tr><td>FinBERT wrapper</td><td>batch = single consistency · score bounds · empty list · truncation at 128.</td></tr>
+      <tr><td>explainer</td><td>empty retrieval → refusal string · injection attempt in a headline → ignored, no leaked instruction · citations present.</td></tr>
+      <tr><td>de-dup</td><td>same bar/event twice → one send · revision → distinct labelled send.</td></tr>
+      <tr><td>bot handlers</td><td>bad ticker, bad window, escaping, <code>/status</code> reflects state.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="blk">11.3 &nbsp;Integration tests</h2>
+  <ul>
+    <li>Produce N messages → Spark micro-batch (local <code>SparkSession</code>) → assert rows in raw + scored Delta, no dupes on replay.</li>
+    <li>Scored + price fixtures → align → signals → backtest returns finite stats and a benchmark.</li>
+    <li>Inject a fake <code>stock-price-alerts</code> record → dispatcher → mocked news + mocked LLM → assert one grounded message to the right subscribers.</li>
+    <li>Inject a fake <code>macro-events</code> record → broadcast to opt-ins only; a second identical record sends nothing.</li>
+  </ul>
+
+  <h2 class="blk">11.4 &nbsp;Mocking external services</h2>
+  <table class="tight">
+    <thead><tr><th>Service</th><th>Approach</th></tr></thead>
+    <tbody>
+      <tr><td>Kafka</td><td>Ephemeral broker in CI (testcontainers) or an in-memory fake for pure-logic tests.</td></tr>
+      <tr><td>yfinance / Alpaca</td><td>Recorded OHLCV fixtures (include an extended-hours gap and a thin-volume ticker).</td></tr>
+      <tr><td>News / FRED</td><td>Fixture JSON captured once; include an empty-news case and a missing-consensus case.</td></tr>
+      <tr><td>LLM</td><td>Stub provider returning canned grounded/refusal outputs; one real call only in the smoke test. Also test a 429 and a malformed response.</td></tr>
+      <tr><td>Telegram</td><td>Mock <code>bot.send_message</code>/<code>send_photo</code>; assert call count, target chats, and that media sends carry no stray markup.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="blk">11.5 &nbsp;Pre-demo smoke test</h2>
+  <ul>
+    <li><code>docker compose up</code> → producer + Spark fill Delta; <code>/price</code> and <code>/backtest</code> return charts within a minute.</li>
+    <li><code>/health/deps</code> green for Kafka, Delta path, FinBERT, LLM, Alpaca, Finnhub, FRED.</li>
+    <li>Inject a fake price alert and a fake macro event via <code>/internal/simulate/alert</code>; both arrive explained, once, with disclaimer.</li>
+    <li>Subscribe, force a crossing in seed data, confirm exactly one push naming the bar time.</li>
+    <li>LLM key quota not exhausted by rehearsal; Alpaca/Finnhub/FRED keys valid.</li>
+  </ul>
+</section>
+
+<!-- ============================== 12 ============================== -->
+<section class="doc-section">
+  <div class="sec-head"><div class="sec-num">12</div><div class="sec-title">Deployment &amp; Folder Structure</div>
+    <div class="sec-kicker">Brief §3 · deploy</div></div>
+
+  <h2 class="blk">12.1 &nbsp;Compose topology</h2>
+  <p>One <code>docker-compose.yml</code>, one image (the <code>Dockerfile</code> installs OpenJDK 17 for Spark plus
+  build tools for torch), each service overriding the command. Healthchecks gate order: ZK → Kafka →
+  {producer, Spark, monitors} → bot/dispatcher. The Spark service carries a CPU/memory reservation (FinBERT is the hot
+  path). A shared <code>./data</code> volume holds the Delta lake, checkpoints, and the bot's JSON state.</p>
+  <pre class="code"><span class="c"># added for Features 2-3, same image, new commands</span>
+  price-monitor:    command: ["python","-m","ingestion.price_monitor"]
+  macro-monitor:    command: ["python","-m","ingestion.macro_monitor"]
+  alert-dispatcher: command: ["python","-m","telegram_bot.dispatcher"]</pre>
+
+  <h2 class="blk">12.2 &nbsp;Environment</h2>
+  <pre class="code">TELEGRAM_BOT_TOKEN=            <span class="c"># @BotFather</span>
+KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+TICKERS=AAPL,NVDA,TSLA,MSFT
+FINBERT_MODEL_NAME=yiyanghkust/finbert-tone
+MARKET_DATA_PROVIDER=yfinance   <span class="c"># or alpaca (live extended hours)</span>
+ALPACA_API_KEY= / ALPACA_API_SECRET=
+FINNHUB_API_KEY=  FRED_API_KEY=   <span class="c"># Features 2-3</span>
+LLM_PROVIDER=claude  LLM_API_KEY=  <span class="c"># explainer, behind LLMProvider</span>
+ENTRY_SENTIMENT_THRESHOLD=0.4  EXIT_SENTIMENT_THRESHOLD=-0.2
+PRICE_MOVE_PCT=3.0  PRICE_MOVE_Z=2.5   <span class="c"># Feature 2 detection</span></pre>
+  <p class="small">Every value already resolves through <code>config/settings.py</code> with an env override, so the
+  same code runs on a laptop (localhost) or in compose (service hostnames).</p>
+
+  <h2 class="blk">12.3 &nbsp;Folder structure</h2>
+  <pre class="code">stock-sentiment-analysis-pipeline/
+├── config/settings.py            <span class="c"># one settings module, env-overridable</span>
+├── ingestion/
+│   ├── kafka_producer.py         <span class="c"># real sources → Kafka (poll loop, de-dup)</span>
+│   ├── kafka_utils.py            <span class="c"># topics, (de)serialize, producer/consumer</span>
+│   ├── sources/                  <span class="c"># Source interface + RSS/Reddit/Finnhub + ticker extract</span>
+│   ├── price_monitor.py          <span class="c"># [new] extended-hours detection</span>
+│   └── macro_monitor.py          <span class="c"># [new] release-calendar poll</span>
+├── data_pipeline/
+│   ├── spark_streaming.py        <span class="c"># Kafka → FinBERT → Delta (foreachBatch)</span>
+│   ├── delta_writer.py           <span class="c"># MERGE upserts, partition, OPTIMIZE</span>
+│   └── data_alignment.py         <span class="c"># OHLCV fetch + point-in-time merge_asof</span>
+├── ml_engine/
+│   ├── finbert_model.py          <span class="c"># model wrapper + singleton</span>
+│   └── distributed_inference.py  <span class="c"># Ray pool + Spark pandas-UDF</span>
+├── quant_backtest/
+│   ├── signal_generator.py       <span class="c"># rolling sentiment + crossings (+ z-score)</span>
+│   └── backtester.py             <span class="c"># vectorbt vs buy-and-hold</span>
+├── explain/                      <span class="c"># [new] grounded event explainer</span>
+│   ├── llm_provider.py           <span class="c"># LLMProvider (Claude default, pluggable)</span>
+│   ├── news_retrieval.py         <span class="c"># Finnhub/RSS per-ticker headlines</span>
+│   └── prompts.py                <span class="c"># grounded, cited, refuse-if-thin</span>
+├── telegram_bot/
+│   ├── bot.py handlers.py keyboards.py state.py
+│   ├── alerts.py                 <span class="c"># polled sentiment crossings</span>
+│   ├── dispatcher.py             <span class="c"># [new] Kafka alert fan-out + explain</span>
+│   ├── charts.py data_service.py
+├── dashboard/app.py              <span class="c"># Streamlit (builder-facing)</span>
+├── docs/                         <span class="c"># this blueprint</span>
+├── tests/{unit,integration,fixtures}
+├── docker-compose.yml  Dockerfile  requirements.txt  .env.example</pre>
+  <p><b>Structural rule:</b> <code>data_service.py</code> and the future <code>dispatcher.py</code> are the two
+  serving choke points; only <code>ml_engine/</code> imports transformers/torch, and only <code>explain/</code>
+  imports the LLM SDK. If any other module reaches for those, something has gone wrong.</p>
+</section>
+
+<!-- ============================== 13 — ROADMAP ============================== -->
+<section class="doc-section">
+  <div class="sec-head"><div class="sec-num">13</div><div class="sec-title">Development Roadmap</div>
+    <div class="sec-kicker">Brief §3 · milestones per feature</div></div>
+  <p class="lead">One shared foundation, then <b>three independent feature tracks</b> — each a sequence of milestones
+  with a concrete, testable <b>&ldquo;Done when&rdquo;</b>. Hand one milestone at a time to an implementer; do not
+  hand over a whole track and ask for &ldquo;the feature&rdquo;.</p>
+  <p class="small">Legend: <span class="pill p-built">built</span> code complete (logic unit-tested) &nbsp;
+    <span class="pill p-part">partial</span> exists but needs work &nbsp;
+    <span class="pill p-todo">to build</span> new.</p>
+  <div class="callout note"><span class="ct">Build log — 2026-08-28</span>
+    Build pass 1: the synthetic post generator was removed and replaced with real ingestion sources
+    (<b>A5</b>); the rolling z-score anomaly signal was added (<b>A4</b>). Both are code-complete with green unit
+    tests. Note on verification: <b>live</b> end-to-end runs (Kafka + Spark + the FinBERT model download) and every
+    keyed source execute in <b>your Docker environment</b> with your credentials — the build sandbox has no network
+    path to Telegram, Reddit, Alpaca, Finnhub, FRED, or HuggingFace, so a &ldquo;built&rdquo; pill here means
+    code-complete and logic-tested, with live verification handed to you. Credentials needed per track are listed at
+    the end of this section.</div>
+
+  <!-- Track 0 -->
+  <div class="track-head"><span class="tk">Track 0 — Platform foundation</span><span class="tg">shared backbone</span></div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">M0.1</span><span class="mt">Streaming spine</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    Kafka + ZK in Compose; <code>kafka_producer</code> emits ticker-tagged messages; <code>ensure_topics</code> idempotent.
+    <div class="done"><b>Done when:</b> <code>docker compose up</code> shows the producer publishing to <code>stock-raw-sentiment</code> and <code>kafka-broker-api-versions</code> healthcheck is green.</div>
+  </div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">M0.2</span><span class="mt">Scoring stream → lakehouse</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    Spark <code>foreachBatch</code>: parse → dedupe → raw Delta → FinBERT (<code>mapInPandas</code>) → scored Delta MERGE.
+    <div class="done"><b>Done when:</b> after a minute of streaming, <code>scored_sentiment</code> has rows with <code>sentiment_score ∈ [−1,1]</code> and replaying a partition adds zero duplicates.</div>
+  </div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">M0.3</span><span class="mt">Bot skeleton + data service</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    <code>python -m telegram_bot.bot</code> polling; TTL-cached <code>data_service</code>; <code>/start /status /refresh</code>.
+    <div class="done"><b>Done when:</b> the bot replies to <code>/start</code> and <code>/status</code> reflects a changed ticker.</div>
+  </div>
+
+  <!-- Track A -->
+  <div class="track-head"><span class="tk">Track A — Feature 1: Sentiment leading indicator</span><span class="tg">social / news → alert</span></div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">A1</span><span class="mt">Point-in-time alignment + signals</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    <code>merge_asof</code> backward/exact=False; rolling sentiment; entry/exit crossings.
+    <div class="done"><b>Done when:</b> a unit test proves a bar at <code>t</code> never sees sentiment ≥ <code>t</code>, and a crossing fires exactly once per transition.</div>
+  </div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">A2</span><span class="mt">Backtest &amp; charts in-chat</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    vectorbt strategy vs. buy-and-hold; <code>/price</code>, <code>/backtest</code>, <code>/posts</code> as PNGs + stats.
+    <div class="done"><b>Done when:</b> <code>/backtest NVDA</code> returns a chart and total-return / Sharpe / drawdown vs. benchmark.</div>
+  </div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">A3</span><span class="mt">Subscription alerts</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    <code>/subscribe</code>; <code>JobQueue</code> loop pushes fresh crossings; de-dup on bar timestamp.
+    <div class="done"><b>Done when:</b> forcing a crossing in seed data delivers exactly one push naming the bar time, and never a second for the same bar.</div>
+  </div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">A4</span><span class="mt">Rolling z-score threshold (&ldquo;beyond a threshold&rdquo;)</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    Per-ticker rolling z-score in <code>signal_generator.py</code> (<code>add_sentiment_zscore</code> /
+    <code>generate_zscore_signals</code>): fires when sentiment is <em>k</em> σ from its trailing baseline —
+    computed against a baseline shifted one bar back, so the current value never inflates its own distribution
+    (lookahead-safe) — with at least <code>SENTIMENT_Z_MIN_POSTS</code> posts in the window.
+    <div class="done"><b>Done when:</b> a ticker whose sentiment jumps against its own baseline triggers, while a ticker at a high-but-flat level does not; both covered by unit tests. ✓ <code>tests/test_zscore_signals.py</code> (15 tests green).</div>
+  </div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">A5</span><span class="mt">Real ingestion sources</span><span class="pill p-built" style="margin-left:auto;">built</span></div>
+    Synthetic generator removed. <code>ingestion/sources/</code> ships three real sources behind one <code>Source</code>
+    interface: keyless <b>RSS</b> (default, no credentials), <b>Reddit</b> (PRAW), and <b>Finnhub</b> news; cashtag +
+    allow-list ticker extraction (<code>ticker_extract.py</code>); the producer poll-loop de-dups and keeps the message contract.
+    <div class="done"><b>Done when:</b> real posts about a universe ticker appear scored in <code>scored_sentiment</code> within one micro-batch, correctly tagged. ✓ Code + transform/extract unit tests green (<code>tests/test_rss_source.py</code>, <code>tests/test_ticker_extract.py</code>). <b>Live run needs your env:</b> RSS works with zero keys; Reddit/Finnhub activate when their keys are set (§ credentials).</div>
+  </div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">A6</span><span class="mt">Signal validation report</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
+    A scheduled out-of-sample backtest summary per ticker so &ldquo;leading indicator&rdquo; stays an evidenced claim, not a slogan.
+    <div class="done"><b>Done when:</b> a weekly job writes per-ticker strategy-vs-benchmark stats and the bot can surface the latest on request.</div>
+  </div>
+
+  <!-- Track B -->
+  <div class="track-head"><span class="tk">Track B — Feature 2: Pre/post-market price-move + why</span><span class="tg">tape → explanation</span></div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">B1</span><span class="mt">Watch subscriptions</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
+    <code>/watch SYM</code> / <code>/unwatch SYM</code>; <code>watched_tickers</code> on <code>ChatState</code>.
+    <div class="done"><b>Done when:</b> <code>/watch NVDA</code> persists across restart and <code>/status</code> lists watched tickers.</div>
+  </div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">B2</span><span class="mt">Extended-hours price monitor</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
+    <code>ingestion/price_monitor.py</code>: Alpaca websocket for watched tickers; % move vs. prior close + return z-score; session-aware; emit <code>stock-price-alerts</code>.
+    <div class="done"><b>Done when:</b> a simulated pre-market −5% gap on a watched ticker produces exactly one <code>stock-price-alerts</code> record with the correct pct/direction/session, and a 0.3% wiggle produces none.</div>
+  </div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">B3</span><span class="mt">News retrieval + LLM explainer</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
+    <code>explain/news_retrieval.py</code> (Finnhub top-N) + <code>explain/llm_provider.py</code> + grounded, cited prompt; refuse when thin. Full spec §17.
+    <div class="done"><b>Done when:</b> given a real ticker + headlines the explainer returns a &lt;60-word cited &ldquo;why&rdquo;; given empty headlines it returns the no-catalyst line, never a fabricated reason (unit-tested).</div>
+  </div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">B4</span><span class="mt">Dispatcher fan-out</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
+    <code>telegram_bot/dispatcher.py</code>: consume <code>stock-price-alerts</code>, de-dup on key, explain once, fan out to watchers with disclaimer; throttle to Telegram limits.
+    <div class="done"><b>Done when:</b> one injected alert reaches only the ticker's watchers, once, explained; a replay of the same record sends nothing.</div>
+  </div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">B5</span><span class="mt">On-demand <code>/why</code></span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
+    Pull path reusing B3 for the active ticker's latest notable move; cache-first.
+    <div class="done"><b>Done when:</b> <code>/why</code> answers for a moving ticker and repeated asks return the identical cached explanation instantly.</div>
+  </div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">B6</span><span class="mt">Audit + degraded modes</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
+    <code>price_alerts</code> Delta audit; graceful paths for empty news / LLM down / stale quote.
+    <div class="done"><b>Done when:</b> with the LLM stubbed to fail, alerts still send (move + raw headline) and every fired alert is recorded in <code>price_alerts</code>.</div>
+  </div>
+
+  <!-- Track C -->
+  <div class="track-head"><span class="tk">Track C — Feature 3: US macro release + why</span><span class="tg">Washington → broadcast</span></div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">C1</span><span class="mt">Macro opt-in</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
+    <code>/macro on|off</code> → <code>macro_opt_in</code>.
+    <div class="done"><b>Done when:</b> opt-in persists and <code>/status</code> shows macro state.</div>
+  </div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">C2</span><span class="mt">Release calendar + detection</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
+    <code>ingestion/macro_monitor.py</code>: poll FRED/Finnhub calendar for the curated set (FOMC, CPI, PCE, NFP, UNRATE, GDP); detect a new observation.
+    <div class="done"><b>Done when:</b> a mocked &ldquo;CPI just posted&rdquo; calendar entry is detected once and only once (natural key on series+release_time).</div>
+  </div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">C3</span><span class="mt">Actual-vs-consensus event</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
+    Fetch actual (FRED) + consensus + prior; compute surprise scaled by historical dispersion; emit <code>macro-events</code>.
+    <div class="done"><b>Done when:</b> a released series yields a <code>macro-events</code> record carrying actual/consensus/prior/surprise; a missing consensus degrades to actual-vs-prior without error.</div>
+  </div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">C4</span><span class="mt">Explain + broadcast</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
+    Reuse the explainer on the numbers + 1–2 wire headlines; dispatcher broadcasts to opt-ins (market-wide), de-dup on key; revisions labelled distinctly.
+    <div class="done"><b>Done when:</b> an injected macro event reaches every opt-in chat once, explains the print vs. consensus, and never advises a trade or forecasts policy (guardrail test).</div>
+  </div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">C5</span><span class="mt">Macro audit</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
+    <code>macro_events</code> Delta audit of every explained release.
+    <div class="done"><b>Done when:</b> each broadcast has a corresponding audit row with the exact figures and text sent.</div>
+  </div>
+
+  <div class="cutline">▲ &nbsp; DEMO-READY CUT LINE &nbsp;— &nbsp; Track 0 + A (1–5) + B (1–4) + C (1–4) is a complete three-feature demo &nbsp; ▲</div>
+
+  <!-- Track H -->
+  <div class="track-head"><span class="tk">Track H — Hardening &amp; rehearsal</span><span class="tg">above the line = upside</span></div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">H1</span><span class="mt">Guardrails &amp; disclaimers everywhere</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
+    Not-advice footer on every alert; grounding tests green; injection tests green (§16).
+    <div class="done"><b>Done when:</b> no code path can emit a trade recommendation or an un-cited &ldquo;why&rdquo;, proven by tests.</div>
+  </div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">H2</span><span class="mt">Observability &amp; health</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
+    <code>/health/deps</code>, correlation ids, redacting logger, Delta OPTIMIZE nightly.
+    <div class="done"><b>Done when:</b> <code>/health/deps</code> is green across all deps and one event is traceable end-to-end by its correlation id.</div>
+  </div>
+  <div class="mstone">
+    <div class="mh"><span class="mid">H3</span><span class="mt">Demo rehearsal</span><span class="pill p-todo" style="margin-left:auto;">to build</span></div>
+    Run the §11.5 smoke test twice on the deployed stack; inject one of each alert type.
+    <div class="done"><b>Done when:</b> the full script runs end-to-end twice without touching code.</div>
+  </div>
+
+  <h3 class="sub">Sequencing notes</h3>
+  <ul>
+    <li><b>Track A first</b> — it is the backbone Features 2–3 reuse (Kafka, Delta, the dispatcher pattern, the bot).</li>
+    <li><b>B before C</b> — B builds the <code>explain/</code> + <code>dispatcher.py</code> that C reuses wholesale; C is then mostly a new monitor.</li>
+    <li><b>B2 is the risk</b> — live extended-hours data quality and session handling. Spike it early with a replay of a known gap day rather than waiting for a live pre-market.</li>
+    <li><b>Grounding tests are not optional polish</b> — they are what make Features 2–3 safe to ship, so H1's tests are written alongside B3/C4, not after.</li>
+  </ul>
+
+  <h3 class="sub">Manual prerequisites — credentials you must procure</h3>
+  <p>Each is free to obtain. Put values in <code>.env</code> (gitignored; copy from <code>.env.example</code>) or set
+  them as environment secrets — never in chat or in git. The build pauses for these where a milestone can't run without them.</p>
+  <table class="tight">
+    <thead><tr><th>Unblocks</th><th>Credential</th><th>Where to get it</th><th>Env var(s)</th></tr></thead>
+    <tbody>
+      <tr><td>Run the bot at all</td><td>Telegram bot token</td><td>@BotFather → <code>/newbot</code></td><td><code>TELEGRAM_BOT_TOKEN</code></td></tr>
+      <tr><td>A5 Reddit source (optional)</td><td>Reddit script app</td><td>reddit.com/prefs/apps → create &ldquo;script&rdquo; app</td><td><code>REDDIT_CLIENT_ID/SECRET/USER_AGENT</code></td></tr>
+      <tr><td>A5 news + B3 explainer retrieval</td><td>Finnhub API key</td><td>finnhub.io (free tier)</td><td><code>FINNHUB_API_KEY</code></td></tr>
+      <tr><td>B2 extended-hours quotes</td><td>Alpaca keys (paper)</td><td>alpaca.markets → paper account</td><td><code>ALPACA_API_KEY/SECRET</code></td></tr>
+      <tr><td>C2/C3 macro data</td><td>FRED API key</td><td>fredaccount.stlouisfed.org/apikeys</td><td><code>FRED_API_KEY</code></td></tr>
+      <tr><td>B3/C4 explanations</td><td>Anthropic API key</td><td>console.anthropic.com</td><td><code>ANTHROPIC_API_KEY</code></td></tr>
+    </tbody>
+  </table>
+  <p class="small">RSS ingestion (Feature 1 baseline) and yfinance research bars need <b>no</b> credentials, so the
+  sentiment backbone runs on real data with only the Telegram token.</p>
+</section>
+
+<!-- ============================== 14 ============================== -->
+<section class="doc-section">
+  <div class="sec-head"><div class="sec-num">14</div><div class="sec-title">Cost, Scalability, Risks &amp; Future Work</div>
+    <div class="sec-kicker">Brief §3 · the honest section</div></div>
+  <div class="callout warn"><span class="ct">Verify before relying</span>
+    Third-party free tiers and pricing move constantly. Re-check X API, Alpaca, Finnhub, FRED limits and the LLM's
+    per-token rate against live pages before launch. The numbers below were reasonable at time of writing.</div>
+
+  <h2 class="blk">14.1 &nbsp;Cost</h2>
+  <table class="tight">
+    <thead><tr><th>Component</th><th>Status</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Kafka, Spark, Delta, Ray, FinBERT, vectorbt, Streamlit, PTB</td><td><span class="pill p-free">free</span></td><td>All OSS; the cost is compute to run them.</td></tr>
+      <tr><td>Compute (one host)</td><td><span class="pill p-paid">paid</span></td><td>The real bill: a box with enough RAM/CPU for a JVM + Spark + torch. A single mid-tier VM or a small cloud instance. FinBERT on CPU is the driver.</td></tr>
+      <tr><td>yfinance / FRED / BLS</td><td><span class="pill p-free">free</span></td><td>Unofficial (yfinance) or official free (FRED/BLS).</td></tr>
+      <tr><td>Alpaca / Finnhub</td><td><span class="pill p-tier">free tier</span></td><td>Free tiers cover a demo and a small watchlist; paid tiers for full SIP / higher news rates.</td></tr>
+      <tr><td>X / Twitter API</td><td><span class="pill p-paid">paid</span></td><td>The one genuinely paid data source. Reddit-only is a viable, free v1.</td></tr>
+      <tr><td>LLM explainer</td><td><span class="pill p-tier">free tier → paid</span></td><td>Low volume (events, not posts) keeps this small; a Haiku-class tier + caching is cents-scale for a demo.</td></tr>
+    </tbody>
+  </table>
+  <p><b>Where it breaks:</b> compute first (Spark + torch are memory-hungry — the demo host, not the APIs, is the
+  early ceiling), then X API cost if social breadth grows, then LLM spend only if the explainer is (wrongly) put on a
+  high-volume path instead of events.</p>
+
+  <h2 class="blk">14.2 &nbsp;Scalability — the order it breaks, and the fix</h2>
+  <ol>
+    <li><b>Single Kafka broker / RF=1</b> (any real load) → multi-broker, RF≥3, partitions sized to consumers.</li>
+    <li><b>FinBERT CPU throughput</b> (high post volume) → GPU executors, an ONNX-quantised head, or a dedicated inference service (Triton). The <code>mapInPandas</code> shape already parallelises across executors.</li>
+    <li><b>Bot polling + JSON state</b> (many chats / multi-instance) → Telegram webhook + FastAPI; move state to Postgres/Redis; the dispatcher already decouples fan-out from the bot process.</li>
+    <li><b>Pandas alignment in memory</b> (large universe) → push the aggregate+join into Spark/Delta instead of <code>toPandas()</code>.</li>
+    <li><b>One host</b> (everything) → split into services on K8s; Kafka + Delta already make components independently scalable.</li>
+  </ol>
+  <p><b>Caching that matters most:</b> the <code>/why</code> and macro explanations keyed on (event, sources) — the
+  same question is asked repeatedly around a move, so a short TTL cache has a high hit rate and keeps LLM spend and
+  latency down. Already the pattern in <code>data_service._TTLCache</code>.</p>
+
+  <h2 class="blk">14.3 &nbsp;Risks &amp; limitations</h2>
+  <table class="tight">
+    <thead><tr><th>Risk</th><th>Severity</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td><b>Financial harm from a bad signal/explanation</b></td><td class="kv" style="color:var(--neg)"><b>Highest</b></td><td>Structural not-advice stance (§16); grounded/cited explanations; backtest shown honestly; disclaimer on every alert.</td></tr>
+      <tr><td>Sentiment ≠ causation; markets are noisy</td><td>High</td><td>Point-in-time backtest with a benchmark; report underperformance; frame sentiment as one input, not a crystal ball.</td></tr>
+      <tr><td>FinBERT weak on slang/sarcasm/emoji</td><td>Medium</td><td>Aggregation dampens outliers; fine-tune on labelled cashtag data (future); state the limit plainly.</td></tr>
+      <tr><td>LLM hallucinated &ldquo;why&rdquo;</td><td>High</td><td>Retrieval-grounded + cited + refuse-if-thin; degrade to raw headline; never free-form.</td></tr>
+      <tr><td>Extended-hours data is thin/noisy</td><td>Medium</td><td>Session-aware thresholds; sanity-bound moves; z-score over recent bars; ignore stale quotes.</td></tr>
+      <tr><td>X API cost / access changes</td><td>Medium</td><td>Reddit-first design; X behind the same producer interface, added when budget allows.</td></tr>
+      <tr><td>Single broker / single host</td><td>Medium</td><td>Documented scale path; RF and replicas are config, not rewrites.</td></tr>
+      <tr><td>Look-ahead creeping back in</td><td>High if unnoticed</td><td>The point-in-time test is a required, permanent guard (§11).</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="blk">14.4 &nbsp;Future work (value-to-effort order)</h2>
+  <ol>
+    <li><b>Fine-tune the sentiment model</b> on labelled Reddit/X cashtag data — the biggest quality lever for Feature 1.</li>
+    <li><b>Webhook + Postgres/Redis</b> for the bot — the prerequisite for scale and multi-instance.</li>
+    <li><b>Volume &amp; unusual-options signals</b> alongside sentiment — cheap corroboration for price-move alerts.</li>
+    <li><b>Per-user watchlists &amp; thresholds</b> — let users set their own move/z thresholds per ticker.</li>
+    <li><b>RAG over filings/earnings transcripts</b> for richer explanations — the one place a vector DB earns its keep.</li>
+    <li><b>Broaden the universe</b> and push alignment fully into Spark.</li>
+    <li><b>Sentiment/return attribution dashboards</b> for the builder — which sources actually lead.</li>
+    <li><b>Backtest-as-a-service</b> — let users backtest a sentiment threshold of their choosing from chat.</li>
+  </ol>
+</section>
+
+<!-- ============================== 16 ============================== -->
+<section class="doc-section">
+  <div class="sec-head"><div class="sec-num">16</div><div class="sec-title">Bot Persona, Limitations &amp; Guardrails</div>
+    <div class="sec-kicker">what it is · can't do · won't do</div></div>
+
+  <div class="disclaimer"><span class="ct">The load-bearing disclaimer</span>
+    Sentinel is an <b>information tool, not financial advice</b>. It reports data, scores sentiment, and explains
+    market and macro events from public sources. It does not recommend trades, predict prices, or manage money.
+    Nothing it emits is a solicitation to buy or sell any security. This stance is enforced by what the code can
+    output, not merely by this paragraph.</div>
+
+  <h2 class="blk">1 &nbsp;Persona</h2>
+  <p>A fast, precise, plain-spoken market analyst that lives in a chat. It leads with the fact (the move, the score,
+  the print), attaches the &ldquo;why&rdquo; when — and only when — it can ground it, names its sources, and stops.
+  It never hypes (&ldquo;to the moon&rdquo;), never hedges into uselessness, and never pretends to certainty it
+  doesn't have. Tone: a good desk analyst's morning note, not a finfluencer's thread.</p>
+  <h3 class="sub">Voice rules</h3>
+  <ul>
+    <li>Fact first, reason second, source third. Every alert carries its timestamp/session.</li>
+    <li>Numbers are the retrieved numbers, verbatim — never &ldquo;about&rdquo; or rounded away from the source.</li>
+    <li>&ldquo;Why&rdquo; is cited or absent. &ldquo;No clear catalyst in the news yet&rdquo; is a valid, frequent, honest answer.</li>
+    <li>No imperatives about trading. Describe the event; let the user decide.</li>
+    <li>Sentiment and backtest results are shown with their uncertainty (benchmark delta, drawdown), not cherry-picked.</li>
+  </ul>
+
+  <h2 class="blk">2 &nbsp;Limitations (named, not hidden)</h2>
+  <table class="tight">
+    <thead><tr><th>Area</th><th>Limitation</th></tr></thead>
+    <tbody>
+      <tr><td>Model</td><td>FinBERT is tuned on financial news register; heavy slang, sarcasm, and emoji-sentiment degrade it. 128-token truncation clips long posts.</td></tr>
+      <tr><td>Causation</td><td>Sentiment leading price is a statistical tendency backtested per ticker, not a law. The bot shows the backtest, including when it fails.</td></tr>
+      <tr><td>Data</td><td>yfinance is unofficial and gappy; extended-hours quotes are thin; free-tier news/macro rates are limited; X is paid.</td></tr>
+      <tr><td>Coverage</td><td>Small ticker universe and a curated macro set by design; English only.</td></tr>
+      <tr><td>Explanation</td><td>Only as good as the retrieved sources; a real move with no published news yet gets an honest &ldquo;no catalyst&rdquo;, not a guess.</td></tr>
+      <tr><td>Scale</td><td>Single broker, single host, polling bot, JSON state — a demo/small-cohort shape, with a documented upgrade path (§14).</td></tr>
+      <tr><td>Latency</td><td>30-second micro-batch + 60-second alert poll: minutes-scale, not HFT. Appropriate for a leading-indicator/awareness tool.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="blk">3 &nbsp;Guardrails (structural)</h2>
+  <p>These are enforced by architecture, so a prompt injection or a model error cannot bypass them.</p>
+  <div class="callout danger"><span class="ct">GUARD-1 · Explanations are grounded or refused</span>
+    The explainer only ever receives retrieved sources (headlines / release numbers) in a delimited block and is
+    instructed to explain strictly from them, cite them, and return a no-catalyst refusal when they're thin. Its
+    output is a short message shown to the user — never a tool call, never an order. The worst case of a successful
+    injection is one wrong sentence, bounded by the citation requirement and the disclaimer.</div>
+  <div class="callout danger"><span class="ct">GUARD-2 · No trade recommendations, ever</span>
+    There is no code path that emits &ldquo;buy&rdquo; / &ldquo;sell&rdquo; / a price target / position sizing.
+    Alerts state what happened and why; the not-advice disclaimer rides on every one. Enforced by tests (H1).</div>
+  <div class="callout danger"><span class="ct">GUARD-3 · No market access</span>
+    Market keys are read-only / paper. The system cannot place, modify, or cancel an order. A compromised prompt or
+    bug still cannot move money.</div>
+  <div class="callout ok"><span class="ct">GUARD-4 · No look-ahead</span>
+    Point-in-time alignment (<code>allow_exact_matches=False</code>) is a permanent, unit-tested invariant. A backtest
+    that could see the future would manufacture false confidence — the one dishonesty this domain punishes hardest.</div>
+  <div class="callout ok"><span class="ct">GUARD-5 · Numbers are verbatim &amp; de-duplicated</span>
+    Quoted figures are the retrieved values, unaltered; every alert is keyed so a replay/re-poll cannot double-send,
+    and a revision is labelled a revision, not a duplicate.</div>
+
+  <h2 class="blk">4 &nbsp;How the three relate</h2>
+  <p>The <b>persona</b> governs tone and may be imperfect and still safe. The <b>guardrails</b> govern outputs that
+  could cause harm — grounding, no-advice, no-market-access, no-lookahead — and are structural so no amount of
+  persona drift or injection bypasses them. The <b>limitations</b> are the honest boundary between the two: the
+  places the system does not compensate, and says so, instead of quietly degrading.</p>
+</section>
+
+<!-- ============================== 17 ============================== -->
+<section class="doc-section">
+  <div class="sec-head"><div class="sec-num">17</div><div class="sec-title">Deep Spec — Price-Move Explanation Engine</div>
+    <div class="sec-kicker">Feature 2 execution spec</div></div>
+  <p class="lead">The hardest, most novel part to get right: turning &ldquo;$NVDA −6% pre-market&rdquo; into a sentence
+  a trader trusts — grounded, cited, and honest when there's nothing to say. This section is written to be handed
+  straight to an implementer (milestones B2–B4).</p>
+
+  <h2 class="blk">17.1 &nbsp;Detection contract (<code>ingestion/price_monitor.py</code>)</h2>
+  <pre class="code"><span class="c"># Per watched ticker, on each extended-hours quote:</span>
+ref_price   = prior regular-session close                 <span class="c"># the anchor a trader compares to</span>
+pct_move    = (last - ref_price) / ref_price * 100
+ret_z       = zscore(recent_returns, lookback=N)          <span class="c"># adaptive, catches unusual moves on quiet names</span>
+session     = "pre" | "post" | "regular"                  <span class="c"># ET-clock derived</span>
+
+fire if  (abs(pct_move) &gt;= PRICE_MOVE_PCT  OR  abs(ret_z) &gt;= PRICE_MOVE_Z)
+     and  session in {"pre","post"}
+     and  quote is fresh (age &lt; STALE_SECONDS)
+     and  not already fired for (ticker, session, sign(pct_move))    <span class="c"># unless move materially extends</span>
+
+emit → stock-price-alerts: {ticker, pct_move, direction, session, ref_price, last, ts}</pre>
+  <p>Detection is deterministic and model-free on purpose — it must fire whether or not the news API or LLM is up.</p>
+
+  <h2 class="blk">17.2 &nbsp;Retrieval (<code>explain/news_retrieval.py</code>)</h2>
+  <ul>
+    <li>Fetch the top-N (default 5) most recent Finnhub company-news items for the ticker within a lookback window (default 24h, tightened toward the move time).</li>
+    <li>Each source = {title, source_name, url, published_ts}. Drop items older than the move, dedupe by title.</li>
+    <li>Optional corroboration: pull the FinBERT sentiment already scored on those same headlines from <code>scored_sentiment</code> — a sharp sentiment shift that lines up with the price move strengthens the explanation and is worth surfacing (&ldquo;news flow turned sharply negative&rdquo;).</li>
+    <li>If retrieval is empty → skip the LLM entirely; the alert body is the no-catalyst line.</li>
+  </ul>
+
+  <h2 class="blk">17.3 &nbsp;Grounded generation (<code>explain/prompts.py</code>, <code>llm_provider.py</code>)</h2>
+  <pre class="code"><span class="c"># System (fixed):</span>
+"You explain why a stock moved, using ONLY the headlines provided.
+ Cite each claim as [n]. If the headlines do not explain the move, say
+ 'No clear catalyst in the news yet.' Never give trading advice. &lt;=60 words."
+
+<span class="c"># User (per event):</span>
+"$NVDA moved {pct}% in {session}. Headlines:
+ [1] {title} — {source} ({ts})
+ [2] ...
+ Explain the move from these only."</pre>
+  <ul>
+    <li>The headlines block is untrusted data (GUARD-1): the model is told it is data, and its only possible output is text shown to the user.</li>
+    <li>One LLM call per event, cache-keyed on (ticker, session, source-set hash) so a re-ask or a fan-out to many chats explains once.</li>
+    <li>Validate the output: must be ≤ the word cap, must contain at least one <code>[n]</code> citation when headlines were supplied, must not contain imperative trade language (a small denylist check). On failure → degrade to &ldquo;{move}. Top headline: [1] {title}.&rdquo;</li>
+  </ul>
+
+  <h2 class="blk">17.4 &nbsp;Dispatch (<code>telegram_bot/dispatcher.py</code>)</h2>
+  <pre class="code">consume(stock-price-alerts)
+  → key = (ticker, session, bucket(ts))
+  → if seen(key): drop
+  → explanation = explain(ticker, pct, session, sources)   <span class="c"># cached</span>
+  → for chat in watchers(ticker):  throttle; send(move + explanation + sources + disclaimer)
+  → mark seen(key); write price_alerts audit row</pre>
+  <p><b>Message shape sent to the user:</b></p>
+  <pre class="code">🔻 $NVDA  −6.1%  pre-market  (ref 118.20 → 110.98, 07:42 ET)
+Why: chipmaker guided Q3 revenue below consensus and flagged softer data-center orders [1][2].
+Sources: [1] Reuters  [2] Finnhub
+_Not financial advice. Information only._</pre>
+
+  <h2 class="blk">17.5 &nbsp;Edge cases &amp; how each is handled</h2>
+  <table class="tight">
+    <thead><tr><th>Case</th><th>Handling</th></tr></thead>
+    <tbody>
+      <tr><td>Real move, no news yet</td><td>Send the move + &ldquo;No clear catalyst in the news yet — watching.&rdquo; Never invent one.</td></tr>
+      <tr><td>News present but unrelated to the move</td><td>The prompt allows the model to say the headlines don't explain it; the refusal line covers this too.</td></tr>
+      <tr><td>Move extends further after first alert</td><td>A second alert only if it crosses a materially larger band; otherwise silent (de-dup).</td></tr>
+      <tr><td>LLM down / 429</td><td>Degrade to raw top headline; back off; the alert still ships.</td></tr>
+      <tr><td>Stale or single bad print</td><td>Freshness + sanity bounds reject it; no alert from a glitch quote.</td></tr>
+      <tr><td>Injection in a headline</td><td>Treated as data; output is user-facing text only; citation + denylist checks bound the blast radius.</td></tr>
+      <tr><td>Many chats watch the same ticker</td><td>Explain once (cache), fan out throttled; audit once.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout note"><span class="ct">Why this design and not &ldquo;just ask the LLM why NVDA is down&rdquo;</span>
+    A bare LLM prompt would confidently invent a plausible-sounding reason from stale training data — the single most
+    dangerous failure a market bot can have. Grounding the answer in <em>today's retrieved headlines</em>, citing
+    them, and refusing when they're thin is the difference between a tool a trader can trust and one that will
+    eventually, confidently, be wrong at the worst moment.</div>
+</section>
+
+</body>
+</html>

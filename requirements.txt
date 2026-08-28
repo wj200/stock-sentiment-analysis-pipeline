@@ -1,20 +1,39 @@
+# --- streaming / lakehouse ---
 pyspark==3.5.1
 delta-spark==3.1.0
 confluent-kafka==2.4.0
 kafka-python==2.0.2
+
+# --- ML sentiment engine ---
 transformers==4.42.4
 torch==2.3.1
 ray[default]==2.31.0
+
+# --- quant / backtest ---
 vectorbt==0.26.2
-yfinance==0.2.40
-alpaca-py==0.28.1
+
+# --- market + macro + news data (REAL sources only) ---
+yfinance==0.2.40            # market OHLCV (research/backtest)
+alpaca-py==0.28.1           # live + extended-hours market data (Feature 2)
+feedparser==6.0.11          # keyless RSS news ingestion (real, no credentials)
+praw==7.7.1                 # Reddit ingestion (requires Reddit app credentials)
+finnhub-python==2.4.20      # company news + economic calendar (requires FINNHUB_API_KEY)
+fredapi==0.5.2              # FRED macro series (requires FRED_API_KEY)
+
+# --- LLM explanation layer (Feature 2 & 3) ---
+anthropic==0.39.0           # grounded event explainer (requires ANTHROPIC_API_KEY)
+
+# --- interface + dashboard ---
 streamlit==1.36.0
 plotly==5.22.0
 kaleido==0.2.1
 python-telegram-bot==21.4
+
+# --- shared ---
 pandas==2.2.2
 numpy==1.26.4
 scipy==1.13.1
 pyarrow==16.1.0
 python-dotenv==1.0.1
 requests==2.32.3
+tenacity==8.5.0             # retry/backoff for external calls

@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Secrets / local config
+.env
+.env.local
+
+# Runtime data (Delta lake, checkpoints, bot state, model cache)
+data/
+*.log
+
+# Spark / Delta
+spark-warehouse/
+metastore_db/
+derby.log
+
+# Blueprint render tooling (regenerated locally; PDF is committed)
+docs/blueprint/node_modules/
+docs/blueprint/mermaid.min.js
+docs/blueprint/blueprint.pdf
+docs/blueprint/package-lock.json
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
