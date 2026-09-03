@@ -48,6 +48,9 @@ Check dependencies before a demo:
 python -m ops.health --probe   # config + Kafka + one live call per configured API
 ```
 
+> **Deploying to a server?** See **[docs/DEPLOY.md](docs/DEPLOY.md)** — VM sizing, a
+> one-shot `scripts/provision.sh`, a systemd unit, operations, and troubleshooting.
+
 ## Credentials
 
 | Capability | Env var(s) | Needed for |
